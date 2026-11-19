@@ -76,6 +76,7 @@
                 <h2 class="font-semibold text-base">Skills & badges</h2>
                 <p class="mt-2">You have <b>{{ $badges }}</b> {{ \Illuminate\Support\Str::plural('badge', $badges) }}. Pass short quizzes or upload certificates to earn more; families see them on your profile and you rank higher in search.</p>
                 <a href="{{ route('caregiver.skills') }}" class="btn btn-primary w-full mt-4">{{ $badges ? 'Earn more badges' : 'Earn your first badge' }}</a>
+                <a href="{{ route('caregiver.qualifications') }}" class="btn btn-ghost w-full mt-2">Add college certificates</a>
             </div>
             <div class="card text-sm space-y-1">
                 <h2 class="font-semibold text-base">Your profile</h2>

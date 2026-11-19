@@ -3,6 +3,7 @@
 <div class="max-w-5xl mx-auto px-4 py-10">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-2xl font-bold">Skill certificates</h1>
+        <a href="{{ route('admin.qualifications') }}" class="link text-sm">College certificates →</a>
         <div class="flex gap-2 text-sm">@foreach(['pending' => 'To check', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $k => $l)<a href="{{ route('admin.skills', ['status' => $k]) }}" class="btn btn-sm {{ $status === $k ? 'btn-primary' : 'btn-ghost' }}">{{ $l }}</a>@endforeach</div>
     </div>
     <p class="text-sm text-slate-600 mt-2">Check the certificate is in the caregiver's name, from a real training provider (e.g. St John Ambulance, Kenya Red Cross, a TVET college) and relevant to the skill. Phone the provider if unsure.</p>

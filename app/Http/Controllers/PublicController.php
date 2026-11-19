@@ -69,6 +69,7 @@ class PublicController extends Controller
             'canReview' => $viewer?->isFamily() && $viewer->hasWorkedWith($caregiver) && ! Review::where('family_id', $viewer->id)->where('caregiver_id', $caregiver->id)->exists(),
             'skills' => $caregiver->skills()->get()->sortByDesc(fn ($s) => [$s->isCertified(), $s->isTested()])->values(),
             'placements' => $profile->placementsCount(),
+            'qualifications' => $caregiver->qualifications()->whereIn('status', ['approved', 'pending', 'unverified'])->orderByRaw("status = 'approved' desc")->orderByDesc('year')->get(),
             'alreadyReported' => $viewer && \App\Models\Report::where('reporter_id', $viewer->id)->where('reported_id', $caregiver->id)->where('status', 'open')->exists(),
             'credits' => $viewer?->isFamily() ? $viewer->creditsLeft() : 0,
         ]);

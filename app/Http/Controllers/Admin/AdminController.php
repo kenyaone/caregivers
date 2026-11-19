@@ -9,6 +9,7 @@ use App\Models\CaregiverSkill;
 use App\Models\FamilyProfile;
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Models\Qualification;
 use App\Models\Report;
 use App\Models\Review;
 use App\Models\Subscription;
@@ -36,7 +37,7 @@ class AdminController extends Controller
             'pendingVerifications' => CaregiverProfile::where('verification_status', 'pending')->count() + FamilyProfile::where('verification_status', 'pending')->count(),
             'pendingPayments' => Payment::where('status', 'pending')->count(),
             'openReports' => Report::where('status', 'open')->count(),
-            'pendingCerts' => CaregiverSkill::where('cert_status', 'pending')->count(),
+            'pendingCerts' => CaregiverSkill::where('cert_status', 'pending')->count() + Qualification::where('status', 'pending')->count(),
         ]);
     }
 
@@ -181,6 +182,28 @@ class AdminController extends Controller
             $ok ? 'Your '.$caregiverSkill->label().' certificate was checked. The "Certificate checked" badge now shows on your profile.'
                 : 'We could not accept your '.$caregiverSkill->label().' certificate: '.$data['cert_note'], route('caregiver.skills')));
         return back()->with('status', 'Certificate '.$data['decision'].'.');
+    }
+
+    public function qualifications(Request $request)
+    {
+        $status = $request->query('status', 'pending');
+        return view('admin.qualifications', [
+            'status' => $status,
+            'items' => Qualification::with('user', 'document')->where('status', $status)->latest('updated_at')->paginate(30)->withQueryString(),
+        ]);
+    }
+
+    public function decideQualification(Request $request, Qualification $qualification)
+    {
+        abort_unless($qualification->document_id, 422);
+        $data = $request->validate(['decision' => 'required|in:approved,rejected', 'note' => 'nullable|required_if:decision,rejected|string|max:255']);
+        $ok = $data['decision'] === 'approved';
+        $qualification->forceFill(['status' => $data['decision'], 'note' => $data['note'] ?? null,
+            'checked_by' => $request->user()->id, 'checked_at' => now()])->save();
+        $qualification->user->notify(new PlatformNotice($ok ? 'Certificate checked' : 'Certificate not accepted',
+            $ok ? 'Your '.$qualification->course.' certificate from '.$qualification->institution.' now shows as checked on your profile.'
+                : 'We could not accept your '.$qualification->course.' certificate: '.$data['note'], route('caregiver.qualifications')));
+        return back()->with('status', 'Qualification '.$data['decision'].'.');
     }
 
     public function payments(Request $request)

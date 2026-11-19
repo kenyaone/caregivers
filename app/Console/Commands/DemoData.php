@@ -126,6 +126,19 @@ class DemoData extends Command
                 }
             }
 
+            // College qualifications
+            $quals = [
+                [$grace, 'Caregiving', 'Nairobi Caregivers Training Institute', 'certificate', 2019, 'approved'],
+                [$peter, 'Certified Nursing Assistant', 'Eldoret Health Training College', 'certificate', 2020, 'approved'],
+                [$janet, 'Palliative care', 'Hospice training centre', 'short_course', 2021, 'unverified'],
+                [$mercy, 'Early Childhood Development Education', 'South B Teachers College', 'diploma', 2018, 'pending'],
+            ];
+            foreach ($quals as [$u, $course, $college, $level, $year, $status]) {
+                $doc = $status === 'unverified' ? null : $u->documents()->create(['type' => 'certificate', 'path' => 'documents/demo-certificate.pdf', 'original_name' => 'demo-college-certificate.pdf']);
+                \App\Models\Qualification::create(['user_id' => $u->id, 'course' => $course, 'institution' => $college, 'level' => $level, 'year' => $year, 'document_id' => $doc?->id])
+                    ->forceFill(['status' => $status, 'checked_at' => $status === 'approved' ? now()->subDays(3) : null])->save();
+            }
+
             User::where('email', 'like', '%@demo.test')->get()->each(fn ($u) => Consent::grantAll($u));
         });
 

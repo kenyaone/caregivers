@@ -46,6 +46,17 @@
                 <li class="{{ $placements ? 'ok' : 'na' }}">{{ $placements }} {{ \Illuminate\Support\Str::plural('placement', $placements) }} through CareGivers254</li>
                 <li class="na">Member since {{ $caregiver->created_at->format('M Y') }}</li>
             </ul>
+            @if($qualifications->isNotEmpty())
+                <h3 class="font-semibold text-sm mt-4">Training & qualifications</h3>
+                <ul class="mt-2 space-y-1 text-sm">
+                    @foreach($qualifications as $q)
+                        <li>
+                            <b>{{ $q->levelLabel() }} in {{ $q->course }}</b>, {{ $q->institution }}@if($q->year) ({{ $q->year }})@endif
+                            @if($q->isChecked())<span class="skill-badge skill-cert">🎓 certificate checked</span>@else<span class="skill-badge skill-declared">not yet checked</span>@endif
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
             <h3 class="font-semibold text-sm mt-4">Skills</h3>
             <div class="mt-2 flex flex-wrap gap-2">
                 @forelse($earned as $s)

@@ -68,6 +68,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/applications/{application}/withdraw', [CaregiverController::class, 'withdraw'])->name('applications.withdraw');
         Route::get('/contacts', [CaregiverController::class, 'contacts'])->name('contacts');
         Route::post('/good-conduct', [CaregiverController::class, 'goodConductRecheck'])->middleware('throttle:3,1')->name('goodconduct');
+        Route::get('/qualifications', [\App\Http\Controllers\Caregiver\QualificationController::class, 'index'])->name('qualifications');
+        Route::post('/qualifications', [\App\Http\Controllers\Caregiver\QualificationController::class, 'store'])->middleware('throttle:10,1')->name('qualifications.store');
+        Route::post('/qualifications/{qualification}/certificate', [\App\Http\Controllers\Caregiver\QualificationController::class, 'certificate'])->middleware('throttle:10,1')->name('qualifications.certificate');
+        Route::delete('/qualifications/{qualification}', [\App\Http\Controllers\Caregiver\QualificationController::class, 'destroy'])->name('qualifications.destroy');
         Route::get('/skills', [\App\Http\Controllers\Caregiver\SkillController::class, 'index'])->name('skills');
         Route::post('/skills', [\App\Http\Controllers\Caregiver\SkillController::class, 'declare'])->name('skills.declare');
         Route::post('/skills/certificate', [\App\Http\Controllers\Caregiver\SkillController::class, 'certificate'])->middleware('throttle:10,1')->name('skills.certificate');
@@ -108,6 +112,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/reports/{report}', [AdminController::class, 'decideReport'])->name('reports.decide');
         Route::post('/caregivers/{user}/pause', [AdminController::class, 'togglePause'])->name('caregivers.pause');
         Route::get('/skills', [AdminController::class, 'skillCerts'])->name('skills');
+        Route::get('/qualifications', [AdminController::class, 'qualifications'])->name('qualifications');
+        Route::post('/qualifications/{qualification}', [AdminController::class, 'decideQualification'])->name('qualifications.decide');
         Route::post('/skills/{caregiverSkill}', [AdminController::class, 'decideSkillCert'])->name('skills.decide');
     });
 });

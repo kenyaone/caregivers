@@ -3,6 +3,7 @@
 <div class="max-w-5xl mx-auto px-4 py-10">
     <h1 class="text-2xl font-bold">My skills & badges</h1>
     <p class="text-slate-600 mt-1">Families trust badges they can check. Tick the skills you have, then earn badges by passing a short quiz (10 questions, pass mark {{ config('skills.pass_mark') }}) or by uploading a certificate for our team to check. Caregivers with more badges show higher in search.</p>
+    <p class="text-sm mt-2">Went to college or did a caregiving course? <a class="link" href="{{ route('caregiver.qualifications') }}">Add your college certificates →</a></p>
     <div class="mt-3 flex flex-wrap gap-2 text-xs">
         <span class="skill-badge skill-cert">🎓 Certificate checked</span>
         <span class="skill-badge skill-tested">✓ Tested</span>

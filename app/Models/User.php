@@ -35,6 +35,7 @@ class User extends Authenticatable
     public function careJobs() { return $this->hasMany(CareJob::class, 'family_id'); }
     public function applications() { return $this->hasMany(JobApplication::class, 'caregiver_id'); }
     public function skills() { return $this->hasMany(CaregiverSkill::class); }
+    public function qualifications() { return $this->hasMany(Qualification::class); }
 
     /** A family "worked with" a caregiver once a care request was accepted or the caregiver was hired for one of its jobs. */
     public function hasWorkedWith(User $caregiver): bool
