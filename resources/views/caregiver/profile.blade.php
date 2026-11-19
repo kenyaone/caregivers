@@ -30,7 +30,15 @@
         <div class="md:col-span-2"><x-field name="training" label="Training" :value="$profile->training" placeholder="e.g. Caregiver certificate (2024); First Aid, St John Ambulance"/></div>
         <x-field name="expected_pay" label="Expected pay (KES)" type="number" min="1" :value="$profile->expected_pay"/>
         <x-select name="pay_unit" label="Pay is" :options="config('noc.pay_units')" :value="$profile->pay_unit" :placeholder="false"/>
-        <div class="md:col-span-2"><x-textarea name="bio" label="About me" :value="$profile->bio" rows="5" placeholder="Your experience, the kind of people you've cared for, what you're good at, and a referee's name and phone." required/></div>
+        <div class="md:col-span-2"><x-textarea name="bio" label="About me" :value="$profile->bio" rows="5" placeholder="Your experience, the kind of people you've cared for and what you're good at. Don't add phone numbers or emails here: families get your contact when they unlock you." required/></div>
+        <div class="md:col-span-2 rounded-xl border border-slate-200 p-4">
+            <div class="font-semibold">Referee <span class="text-xs font-normal text-slate-500">(private: only our team sees this, to confirm your work)</span></div>
+            <div class="mt-3 grid gap-4 md:grid-cols-3">
+                <x-field name="referee_name" label="Referee name" :value="$profile->referee_name" placeholder="e.g. a past employer or supervisor"/>
+                <x-field name="referee_phone" label="Referee phone" :value="$profile->referee_phone" placeholder="07XX XXX XXX"/>
+                <x-field name="referee_relationship" label="How they know you" :value="$profile->referee_relationship" placeholder="e.g. Former employer, 2 years"/>
+            </div>
+        </div>
         <label class="md:col-span-2 flex items-center gap-2 text-sm"><input type="hidden" name="available" value="0"><input type="checkbox" name="available" value="1" class="rounded" @checked(old('available', $profile->available))> I'm available for work (show me in search)</label>
         <div class="md:col-span-2 flex flex-wrap gap-3"><button class="btn btn-primary">Save profile</button><a href="{{ route('documents.index') }}" class="btn btn-ghost">Upload ID & documents →</a></div>
     </form>

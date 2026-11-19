@@ -33,9 +33,8 @@ class DemoData extends Command
         }
         $pw = $this->option('password');
         $cgPlan = Plan::where('audience', 'caregiver')->where('is_active', true)->firstOrFail();
-        $famPlan = Plan::where('audience', 'family')->where('is_active', true)->orderBy('price')->firstOrFail();
 
-        DB::transaction(function () use ($pw, $cgPlan, $famPlan) {
+        DB::transaction(function () use ($pw, $cgPlan) {
             $cgs = [];
             $defs = [
                 ['Grace Njeri', 'Experienced elderly & dementia caregiver', ['elderly', 'dementia', 'bedridden'], ['live_in', 'day'], 'Nairobi', 'Kileleshwa', 'female', 38, 8, 22000, 'English, Kiswahili, Kikuyu', 'Caregiver certificate'],
@@ -52,7 +51,8 @@ class DemoData extends Command
                 CaregiverProfile::create(['user_id' => $u->id, 'headline' => $headline, 'care_types' => $types, 'arrangements' => $arr, 'county' => $county, 'town' => $town,
                     'gender' => $gender, 'age' => $age, 'years_experience' => $yrs, 'expected_pay' => $pay, 'pay_unit' => $pay < 5000 ? 'per_day' : 'per_month',
                     'languages' => $langs, 'training' => $training, 'available' => true,
-                    'bio' => "Demo profile. I have {$yrs} years of experience in ".strtolower(implode(', ', array_map(fn ($t) => config('noc.care_types')[$t], $types))).'. Referee: available on request.'])
+                    'referee_name' => 'Demo Referee '.($i + 1), 'referee_phone' => '2547990000'.($i + 10), 'referee_relationship' => 'Former employer',
+                    'bio' => "Demo profile. I have {$yrs} years of experience in ".strtolower(implode(', ', array_map(fn ($t) => config('noc.care_types')[$t], $types))).'.'])
                     ->forceFill(['verification_status' => 'approved', 'verified_at' => now()->subDays(10),
                         // Esther's certificate is about to expire so the reminder can be seen
                         'good_conduct_issued_on' => ($i === 6 ? now()->subMonths(5)->subDays(10) : now()->subDays(20 + $i * 9))->toDateString()])->save();
@@ -61,22 +61,18 @@ class DemoData extends Command
                 $u->subscriptions()->create(['plan_id' => $cgPlan->id, 'payment_id' => $pay->id, 'starts_at' => now()->subDays(9), 'ends_at' => now()->subDays(9)->addDays($cgPlan->duration_days)]);
                 $cgs[] = $u;
             }
+            Payment::create(['user_id' => $cgs[4]->id, 'plan_id' => $cgPlan->id, 'amount' => $cgPlan->price, 'phone' => $cgs[4]->phone, 'method' => 'manual', 'reference' => 'DEMOPEND02', 'status' => 'pending']);
             $pending = User::create(['name' => 'Lilian Moraa', 'email' => 'caregiver9@demo.test', 'phone' => '254720000019', 'password' => $pw, 'role' => 'caregiver']);
             CaregiverProfile::create(['user_id' => $pending->id, 'headline' => 'New caregiver, childcare', 'care_types' => ['children'], 'arrangements' => ['day'], 'county' => 'Kisii', 'town' => 'Kisii', 'years_experience' => 2, 'bio' => 'Demo profile awaiting verification.'])
                 ->forceFill(['verification_status' => 'pending'])->save();
 
             $fams = [];
-            foreach ([['Wanjiru Kamau', 'Nairobi', 'Lavington', 2], ['Kiprotich Rotich', 'Uasin Gishu', 'Eldoret', 3], ['Amina Abdalla', 'Mombasa', 'Nyali', 0]] as $i => [$name, $county, $town, $credits]) {
+            foreach ([['Wanjiru Kamau', 'Nairobi', 'Lavington'], ['Kiprotich Rotich', 'Uasin Gishu', 'Eldoret'], ['Amina Abdalla', 'Mombasa', 'Nyali']] as $i => [$name, $county, $town]) {
                 $u = User::create(['name' => $name, 'email' => 'family'.($i + 1).'@demo.test', 'phone' => '2547300000'.($i + 10), 'password' => $pw, 'role' => 'family']);
                 FamilyProfile::create(['user_id' => $u->id, 'county' => $county, 'town' => $town, 'about' => 'Demo family account.']);
-                if ($credits) {
-                    $p = Payment::create(['user_id' => $u->id, 'plan_id' => $famPlan->id, 'amount' => $famPlan->price, 'phone' => $u->phone, 'method' => 'manual', 'reference' => 'DEMOFAM00'.($i + 1), 'status' => 'paid', 'paid_at' => now()->subDays(3)]);
-                    ContactPass::create(['user_id' => $u->id, 'plan_id' => $famPlan->id, 'payment_id' => $p->id, 'credits_total' => $famPlan->credits ?: 3, 'credits_used' => ($famPlan->credits ?: 3) - $credits, 'expires_at' => now()->addDays(27)]);
-                }
                 $fams[] = $u;
             }
             [$wanjiru, $kiprotich, $amina] = $fams;
-            Payment::create(['user_id' => $amina->id, 'plan_id' => $famPlan->id, 'amount' => $famPlan->price, 'phone' => $amina->phone, 'method' => 'manual', 'reference' => 'DEMOPEND02', 'status' => 'pending']);
 
             // Jobs
             $jobs = [
@@ -99,7 +95,7 @@ class DemoData extends Command
 
             // Wanjiru unlocked Grace, Grace accepted her request, and Wanjiru reviewed her
             CareRequest::create(['family_id' => $wanjiru->id, 'caregiver_id' => $grace->id, 'care_type' => 'dementia', 'arrangement' => 'live_in', 'message' => 'Demo request: live-in care for my mother with dementia.', 'status' => 'accepted']);
-            Unlock::create(['family_id' => $wanjiru->id, 'caregiver_id' => $grace->id, 'contact_pass_id' => $wanjiru->contactPasses()->first()->id]);
+            Unlock::create(['family_id' => $wanjiru->id, 'caregiver_id' => $grace->id]);
             Review::create(['family_id' => $wanjiru->id, 'caregiver_id' => $grace->id, 'stars' => 5, 'comment' => 'Patient and kind with my mother. Highly recommended.']);
             $grace->caregiverProfile->forceFill(['rating_avg' => 5, 'rating_count' => 1])->save();
 
@@ -144,14 +140,14 @@ class DemoData extends Command
 
         $this->info('Demo data created. All demo accounts use password: '.$pw);
         $this->table(['Login', 'Who'], [
-            ['family1@demo.test', 'Wanjiru (Nairobi): 2 credits, 2 jobs with applicants, unlocked & reviewed Grace'],
-            ['family2@demo.test', 'Kiprotich (Eldoret): 3 credits, night-carer job, request to Janet'],
-            ['family3@demo.test', 'Amina (Mombasa): no credits, payment awaiting admin'],
+            ['family1@demo.test', 'Wanjiru (Nairobi): 2 jobs with applicants, hired-by-request & reviewed Grace'],
+            ['family2@demo.test', 'Kiprotich (Eldoret): night-carer job, request to Janet'],
+            ['family3@demo.test', 'Amina (Mombasa): nanny job, Mercy accepted her request'],
             ['caregiver1@demo.test', 'Grace Njeri, elderly & dementia (Nairobi): 2 tested badges'],
             ['caregiver7@demo.test', 'Esther Nekesa: Good Conduct about to expire'],
             ['caregiver8@demo.test', 'Daniel Mutua: First Aid certificate waiting for admin'],
             ['caregiver3@demo.test', 'Peter Kiprono, rehab (Eldoret)'],
-            ['caregiver5@demo.test', 'Janet Chepkemoi, palliative (Eldoret): pending request'],
+            ['caregiver5@demo.test', 'Janet Chepkemoi, palliative (Eldoret): pending request, renewal payment awaiting admin'],
             ['caregiver9@demo.test', 'Lilian Moraa: awaiting verification'],
         ]);
         return self::SUCCESS;

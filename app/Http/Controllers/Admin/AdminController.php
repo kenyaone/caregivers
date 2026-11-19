@@ -233,7 +233,7 @@ class AdminController extends Controller
     public function savePlan(Request $request, ?Plan $plan = null)
     {
         $data = $request->validate([
-            'audience' => 'required|in:caregiver,family',
+            'audience' => 'required|in:caregiver',
             'name' => 'required|string|max:60',
             'price' => 'required|integer|min:1',
             'duration_days' => 'required|integer|min:1|max:730',

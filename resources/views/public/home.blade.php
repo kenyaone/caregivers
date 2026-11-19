@@ -115,7 +115,7 @@
                 <ol>
                     <li><span><b>Browse verified caregivers</b> by care type, county and live-in or day work. You'll see photos, experience, expected pay and reviews.</span></li>
                     <li><span><b>Or post a care job for free.</b> Matching caregivers near you are alerted and apply.</span></li>
-                    <li><span><b>Unlock contacts</b> with a contact pass{{ $familyPlan ? ' (from KES '.number_format($familyPlan->price).')' : '' }}. Call, interview and check references.</span></li>
+                    <li><span><b>Call caregivers for free.</b> Interview them and check their references.</span></li>
                     <li><span><b>Agree terms directly</b> with your caregiver, then leave a review to help other families.</span></li>
                 </ol>
                 <a href="{{ route('register') }}" class="cg-btn cg-teal" style="margin-top:1.5rem">Create a family account</a>
@@ -149,7 +149,7 @@
     <h2 class="cg-h2">You're inviting someone into your home. We take that seriously.</h2>
     <div class="cg-safe" style="margin-top:2rem">
         <div><b>🪪 Checked before listing</b><p>Every caregiver's national ID and police Certificate of Good Conduct is reviewed, and a referee is phoned, before the profile goes live.</p></div>
-        <div><b>⭐ Honest reviews</b><p>Only families who unlocked a caregiver can review them, so ratings come from real contact.</p></div>
+        <div><b>⭐ Honest reviews</b><p>Only families whose request a caregiver accepted, or who hired them, can review them, so ratings come from real work.</p></div>
         <div><b>🤝 Meet first, always</b><p>Interview in person, call the references yourself, and agree pay, duties and days off in writing before the first day.</p></div>
     </div>
 </section>

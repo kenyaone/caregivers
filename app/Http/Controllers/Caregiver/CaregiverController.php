@@ -9,6 +9,7 @@ use App\Models\JobApplication;
 use App\Models\Unlock;
 use App\Models\User;
 use App\Notifications\PlatformNotice;
+use App\Rules\NoContactDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -46,7 +47,7 @@ class CaregiverController extends Controller
             'name' => 'required|string|max:120',
             'phone' => ['required', 'regex:/^(\+?254|0)?[17]\d{8}$/'],
             'photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:3072',
-            'headline' => 'required|string|max:120',
+            'headline' => ['required', 'string', 'max:120', new NoContactDetails],
             'care_types' => 'required|array|min:1',
             'care_types.*' => Rule::in(array_keys(config('noc.care_types'))),
             'arrangements' => 'required|array|min:1',
@@ -54,13 +55,16 @@ class CaregiverController extends Controller
             'gender' => 'nullable|in:female,male',
             'age' => 'nullable|integer|min:18|max:80',
             'county' => ['required', Rule::in(config('noc.counties'))],
-            'town' => 'nullable|string|max:80',
+            'town' => ['nullable', 'string', 'max:80', new NoContactDetails],
             'years_experience' => 'nullable|integer|min:0|max:60',
-            'training' => 'nullable|string|max:255',
-            'languages' => 'nullable|string|max:150',
+            'training' => ['nullable', 'string', 'max:255', new NoContactDetails],
+            'languages' => ['nullable', 'string', 'max:150', new NoContactDetails],
             'expected_pay' => 'nullable|integer|min:1|max:1000000',
             'pay_unit' => ['required', Rule::in(array_keys(config('noc.pay_units')))],
-            'bio' => 'required|string|max:2000',
+            'bio' => ['required', 'string', 'max:2000', new NoContactDetails],
+            'referee_name' => 'nullable|required_with:referee_phone|string|max:120',
+            'referee_phone' => ['nullable', 'required_with:referee_name', 'regex:/^(\+?254|0)?[17]\d{8}$/'],
+            'referee_relationship' => 'nullable|string|max:60',
             'available' => 'boolean',
         ]);
 
@@ -70,6 +74,9 @@ class CaregiverController extends Controller
                 Storage::disk('public')->delete($profile->photo_path);
             }
             $data['photo_path'] = $request->file('photo')->store('photos', 'public');
+        }
+        if (! empty($data['referee_phone'])) {
+            $data['referee_phone'] = User::normalisePhone($data['referee_phone']);
         }
         unset($data['name'], $data['phone'], $data['photo']);
         $profile->fill($data + ['available' => $request->boolean('available')])->save();
@@ -88,6 +95,9 @@ class CaregiverController extends Controller
             return back()->withErrors(['verify' => 'Add a clear profile photo of your face first.']);
         }
         $types = $user->documents()->pluck('type');
+        if (! $profile->referee_phone && ! $types->contains('reference_letter')) {
+            return back()->withErrors(['verify' => 'Add a referee (name and phone) on your profile, or upload a reference letter. Only our team sees it.']);
+        }
         if (! $types->contains('national_id') || ! $types->contains('selfie') || ! $types->contains('good_conduct')) {
             return back()->withErrors(['verify' => 'Upload your national ID, a selfie holding your ID, and your Certificate of Good Conduct first.']);
         }
@@ -123,7 +133,7 @@ class CaregiverController extends Controller
         $careRequest->family->notify(new PlatformNotice(
             $data['decision'] === 'accepted' ? 'Caregiver is interested' : 'Caregiver not available',
             $data['decision'] === 'accepted'
-                ? $request->user()->publicName().' is interested in your care request. Unlock their contact to call them and arrange an interview.'
+                ? $request->user()->publicName().' is interested in your care request. Open their profile to see their number and call them.'
                 : $request->user()->publicName().' is not available for your request. Try other caregivers.',
             route('caregivers.show', $request->user())
         ));
@@ -146,7 +156,7 @@ class CaregiverController extends Controller
             return redirect()->route('payments.index')->withErrors(['apply' => 'You need an active subscription to apply for jobs.']);
         }
         abort_unless($job->status === 'open', 422, 'This job is no longer open.');
-        $data = $request->validate(['message' => 'required|string|min:20|max:1000'], ['message.min' => 'Tell the family a little about why you are a good fit (at least 20 characters).']);
+        $data = $request->validate(['message' => ['required', 'string', 'min:20', 'max:1000', new NoContactDetails]], ['message.min' => 'Tell the family a little about why you are a good fit (at least 20 characters).']);
         if ($job->applications()->where('caregiver_id', $user->id)->exists()) {
             return back()->withErrors(['apply' => 'You have already applied for this job.']);
         }

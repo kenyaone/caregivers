@@ -1,7 +1,7 @@
 @extends('layouts.app', ['title' => 'Families who contacted me'])
 @section('content')
 <div class="max-w-3xl mx-auto px-4 py-10">
-    <h1 class="text-2xl font-bold">Families who unlocked your number</h1>
+    <h1 class="text-2xl font-bold">Families who viewed your number</h1>
     <p class="text-sm text-slate-600 mt-1">These families may call you. Only meet in safe places, and never pay anyone to "secure" a job.</p>
     <div class="card mt-6 divide-y">
         @forelse($unlocks as $u)

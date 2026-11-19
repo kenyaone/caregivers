@@ -81,13 +81,9 @@
                 <div class="grid gap-4 md:grid-cols-2">
                     <form method="POST" action="{{ route('family.unlock', $caregiver) }}" class="rounded-xl bg-teal-50 p-4">
                         @csrf
-                        <div class="font-semibold">Get this caregiver's phone number</div>
-                        <p class="text-sm text-slate-600 mt-1">Uses 1 contact credit. You have <b>{{ $credits }}</b> left.</p>
-                        @if($credits)
-                            <button class="btn btn-primary mt-3" onclick="return confirm('Use 1 credit to unlock this contact?')">Unlock contact</button>
-                        @else
-                            <a href="{{ route('payments.index') }}" class="btn btn-primary mt-3">Buy a contact pass</a>
-                        @endif
+                        <div class="font-semibold">Call this caregiver</div>
+                        <p class="text-sm text-slate-600 mt-1">Free for families. {{ $caregiver->publicName() }} is told you viewed their number, and sees yours so they can call back.</p>
+                        <button class="btn btn-primary mt-3">📞 Show phone number</button>
                     </form>
                     <form method="POST" action="{{ route('family.request', $caregiver) }}" class="rounded-xl bg-slate-50 p-4 space-y-3">
                         @csrf
@@ -102,7 +98,7 @@
                     </form>
                 </div>
             @elseif(! $viewer)
-                <a href="{{ route('register') }}" class="btn btn-primary">Create a free family account to contact {{ $caregiver->publicName() }}</a>
+                <a href="{{ route('register') }}" class="btn btn-primary">Create a free family account to see {{ $caregiver->publicName() }}'s number</a>
                 <span class="text-sm text-slate-500 ml-2">Already registered? <a href="{{ route('login') }}" class="link">Log in</a></span>
             @endif
         </div>

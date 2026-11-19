@@ -18,7 +18,7 @@
                         <button name="decision" value="accepted" class="btn btn-primary btn-sm">I'm interested</button>
                         <button name="decision" value="declined" class="btn btn-ghost btn-sm">Not available</button>
                     </form>
-                    <p class="text-xs text-slate-500 mt-2">If you're interested, the family is told and can unlock your phone number to call you.</p>
+                    <p class="text-xs text-slate-500 mt-2">If you're interested, the family is told and can call you.</p>
                 @endif
             </div>
         @empty

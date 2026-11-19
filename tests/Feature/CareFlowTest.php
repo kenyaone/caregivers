@@ -51,9 +51,6 @@ class CareFlowTest extends TestCase
     {
         $u = User::factory()->create(['role' => 'family', 'phone' => '254722222222']);
         FamilyProfile::create(['user_id' => $u->id, 'county' => 'Nairobi', 'town' => 'Kileleshwa']);
-        if ($credits) {
-            ContactPass::create(['user_id' => $u->id, 'plan_id' => Plan::where('audience', 'family')->first()->id, 'credits_total' => $credits, 'expires_at' => now()->addDays(30)]);
-        }
         Consent::grantAll($u);
         return $u;
     }
@@ -93,7 +90,16 @@ class CareFlowTest extends TestCase
             'headline' => 'Nanny and elderly carer', 'care_types' => ['children', 'elderly'], 'arrangements' => ['day'], 'county' => 'Nakuru',
             'pay_unit' => 'per_month', 'expected_pay' => 15000, 'bio' => 'Five years caring for children and elderly people.', 'available' => '1'])->assertSessionHasNoErrors();
 
-        $this->post('/caregiver/verify')->assertSessionHasErrors('verify'); // no documents yet
+        $this->post('/caregiver/verify')->assertSessionHasErrors('verify'); // no referee or documents yet
+        $this->put('/caregiver/profile', ['name' => 'Grace Njeri', 'phone' => '0711000000',
+            'headline' => 'Nanny and elderly carer', 'care_types' => ['children', 'elderly'], 'arrangements' => ['day'], 'county' => 'Nakuru',
+            'pay_unit' => 'per_month', 'expected_pay' => 15000, 'bio' => 'Five years caring for children and elderly people.', 'available' => '1',
+            'referee_name' => 'Jane Wanjiku', 'referee_phone' => '0722 000000'])->assertSessionHasErrors('referee_phone');
+        $this->put('/caregiver/profile', ['name' => 'Grace Njeri', 'phone' => '0711000000',
+            'headline' => 'Nanny and elderly carer', 'care_types' => ['children', 'elderly'], 'arrangements' => ['day'], 'county' => 'Nakuru',
+            'pay_unit' => 'per_month', 'expected_pay' => 15000, 'bio' => 'Five years caring for children and elderly people.', 'available' => '1',
+            'referee_name' => 'Jane Wanjiku', 'referee_phone' => '0722000000', 'referee_relationship' => 'Former employer'])->assertSessionHasNoErrors();
+        $this->assertSame('254722000000', $u->caregiverProfile->fresh()->referee_phone);
         foreach (['national_id', 'good_conduct'] as $t) {
             $this->post('/my/documents', ['type' => $t, 'file' => UploadedFile::fake()->create('d.pdf', 50, 'application/pdf')])->assertSessionHasNoErrors();
         }
@@ -112,17 +118,18 @@ class CareFlowTest extends TestCase
         Storage::disk('local')->put('documents/gc.pdf', 'x');
         Storage::disk('local')->put('documents/id.pdf', 'x');
 
-        $noCredit = $this->family(0);
-        $this->actingAs($noCredit)->post("/family/caregivers/{$cg->id}/unlock")->assertRedirect(route('payments.index'));
-        $this->actingAs($noCredit)->get("/documents/{$doc->id}")->assertForbidden();
+        $noCredit = $this->family();
+        $this->actingAs($noCredit)->get("/documents/{$doc->id}")->assertForbidden(); // hasn't viewed the caregiver yet
+        $this->get("/caregivers/{$cg->id}")->assertDontSee('254711111111'); // guests never see numbers
 
-        $fam = $this->family(3);
-        $this->actingAs($fam)->get("/caregivers/{$cg->id}")->assertDontSee('254711111111');
+        // Free for families: one click shows the number, the caregiver is told
+        $fam = $this->family();
+        $this->actingAs($fam)->get("/caregivers/{$cg->id}")->assertDontSee('254711111111')->assertSee('Show phone number');
         $this->actingAs($fam)->post("/family/caregivers/{$cg->id}/unlock")->assertSessionHasNoErrors();
-        $this->assertSame(2, $fam->creditsLeft());
         $this->actingAs($fam)->get("/caregivers/{$cg->id}")->assertSee('254711111111');
         $this->actingAs($fam)->post("/family/caregivers/{$cg->id}/unlock");
-        $this->assertSame(2, $fam->creditsLeft(), 'unlocking twice must not use a second credit');
+        $this->assertSame(1, Unlock::where('family_id', $fam->id)->count());
+        Notification::assertSentTo($cg, \App\Notifications\PlatformNotice::class);
         $this->actingAs($fam)->get("/documents/{$doc->id}")->assertOk();
         $this->actingAs($fam)->get("/documents/{$id->id}")->assertForbidden(); // ID card stays private
 
@@ -170,7 +177,7 @@ class CareFlowTest extends TestCase
         $this->actingAs($fam)->post("/family/applications/{$app->id}", ['status' => 'hired'])->assertSessionHasNoErrors();
         $this->assertSame('filled', $careJob->fresh()->status);
 
-        foreach (['/family', '/family/jobs', "/family/jobs/{$careJob->id}", "/family/jobs/{$careJob->id}/edit", '/family/contacts', '/family/requests', '/family/profile', '/my/payments', '/my/documents'] as $url) {
+        foreach (['/family', '/family/jobs', "/family/jobs/{$careJob->id}", "/family/jobs/{$careJob->id}/edit", '/family/contacts', '/family/requests', '/family/profile', '/my/documents'] as $url) {
             $this->actingAs($fam)->get($url)->assertOk();
         }
         foreach (['/caregiver', '/caregiver/profile', '/caregiver/requests', '/caregiver/applications', '/caregiver/contacts', '/my/payments', '/my/documents', "/jobs/{$careJob->id}"] as $url) {
@@ -178,17 +185,15 @@ class CareFlowTest extends TestCase
         }
     }
 
-    public function test_payments_grant_subscription_or_contact_pass(): void
+    public function test_only_caregivers_pay_and_families_are_free(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $fam = $this->family();
-        $famPlan = Plan::where('audience', 'family')->where('name', 'Contact Pass')->first();
-        $this->actingAs($fam)->post('/my/payments', ['plan_id' => $famPlan->id, 'reference' => 'ABC123DEF4', 'phone' => '0722222222'])->assertSessionHasNoErrors();
+        $this->assertSame(0, Plan::for('family')->count(), 'no family plans');
         $cgPlan = Plan::where('audience', 'caregiver')->first();
-        $this->actingAs($fam)->post('/my/payments', ['plan_id' => $cgPlan->id, 'reference' => 'ZZZ123DEF4', 'phone' => '0722222222'])->assertNotFound(); // wrong audience
-
-        $this->actingAs($admin)->post('/admin/payments/'.Payment::first()->id, ['decision' => 'confirm'])->assertSessionHasNoErrors();
-        $this->assertSame(3, $fam->creditsLeft());
+        $this->actingAs($fam)->get('/my/payments')->assertRedirect(route('dashboard'));
+        $this->actingAs($fam)->post('/my/payments', ['plan_id' => $cgPlan->id, 'reference' => 'ZZZ123DEF4', 'phone' => '0722222222'])->assertForbidden();
+        $this->get('/pricing')->assertSee('Free for families')->assertDontSee('Contact Pass');
 
         $cg = $this->caregiver(true, false);
         $this->actingAs($cg)->post('/my/payments', ['plan_id' => $cgPlan->id, 'reference' => 'QWE123RTY0', 'phone' => '0711111111'])->assertSessionHasNoErrors();

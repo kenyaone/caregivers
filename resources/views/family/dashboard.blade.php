@@ -9,8 +9,8 @@
         <div class="alert alert-info mt-6">Add your county and town on <a class="link" href="{{ route('family.profile') }}">your profile</a> so caregivers know where you are.</div>
     @endunless
     <div class="mt-6 grid gap-4 sm:grid-cols-3">
-        <div class="card"><div class="text-sm text-slate-500">Contact credits left</div><div class="text-3xl font-bold mt-1">{{ $credits }}</div><a href="{{ route('payments.index') }}" class="link text-xs">Buy a contact pass →</a></div>
-        <div class="card"><div class="text-sm text-slate-500">Caregivers you've unlocked</div><div class="text-3xl font-bold mt-1">{{ $unlocked->count() }}</div><a href="{{ route('family.contacts') }}" class="link text-xs">View contacts →</a></div>
+        <div class="card"><div class="text-sm text-slate-500">Cost to you</div><div class="text-3xl font-bold mt-1">Free</div><div class="text-xs text-slate-500">Browse, post jobs and call caregivers at no charge</div></div>
+        <div class="card"><div class="text-sm text-slate-500">Caregivers you've contacted</div><div class="text-3xl font-bold mt-1">{{ $unlocked->count() }}</div><a href="{{ route('family.contacts') }}" class="link text-xs">View contacts →</a></div>
         <div class="card"><div class="text-sm text-slate-500">ID-verified badge</div><div class="mt-2"><x-status :value="$profile->verification_status === 'incomplete' ? 'not requested' : $profile->verification_status"/></div>
             @if(in_array($profile->verification_status, ['incomplete', 'rejected']))<form method="POST" action="{{ route('family.verify') }}" class="mt-2">@csrf<button class="link text-xs">Upload your ID, then request the badge →</button></form>@endif</div>
     </div>

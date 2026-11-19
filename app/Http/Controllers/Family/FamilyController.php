@@ -8,6 +8,7 @@ use App\Models\Review;
 use App\Models\Unlock;
 use App\Models\User;
 use App\Notifications\PlatformNotice;
+use App\Rules\NoContactDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,6 @@ class FamilyController extends Controller
         $user = $request->user();
         return view('family.dashboard', [
             'profile' => $user->familyProfile,
-            'credits' => $user->creditsLeft(),
             'jobs' => $user->careJobs()->withCount(['applications as new_count' => fn ($q) => $q->where('status', 'applied')])->latest()->limit(5)->get(),
             'requests' => CareRequest::where('family_id', $user->id)->with('caregiver.caregiverProfile')->latest()->limit(5)->get(),
             'unlocked' => Unlock::where('family_id', $user->id)->with('caregiver.caregiverProfile')->latest()->limit(6)->get(),
@@ -39,7 +39,7 @@ class FamilyController extends Controller
             'phone' => ['required', 'regex:/^(\+?254|0)?[17]\d{8}$/'],
             'county' => ['required', Rule::in(config('noc.counties'))],
             'town' => 'required|string|max:80',
-            'about' => 'nullable|string|max:1000',
+            'about' => ['nullable', 'string', 'max:1000', new NoContactDetails],
         ]);
         $user->update(['name' => $data['name'], 'phone' => User::normalisePhone($data['phone'])]);
         $user->familyProfile->fill(collect($data)->only(['county', 'town', 'about'])->all())->save();
@@ -65,23 +65,16 @@ class FamilyController extends Controller
             return back();
         }
 
-        $result = DB::transaction(function () use ($family, $caregiver) {
-            $pass = $family->contactPasses()->where('expires_at', '>', now())
-                ->whereColumn('credits_used', '<', 'credits_total')->orderBy('expires_at')->lockForUpdate()->first();
-            if (! $pass) {
-                return false;
-            }
-            $pass->increment('credits_used');
-            return Unlock::create(['family_id' => $family->id, 'caregiver_id' => $caregiver->id, 'contact_pass_id' => $pass->id]);
-        });
-
-        if (! $result) {
-            return redirect()->route('payments.index')->withErrors(['unlock' => 'You have no contact credits left. Buy a contact pass to unlock caregiver phone numbers.']);
+        // Free for families. A daily cap stops anyone harvesting caregivers' numbers.
+        $limit = (int) config('noc.free_contacts_per_day', 15);
+        if (Unlock::where('family_id', $family->id)->where('created_at', '>=', now()->subDay())->count() >= $limit) {
+            return back()->withErrors(['unlock' => 'You have viewed '.$limit.' caregiver numbers in the last 24 hours. Please try again tomorrow, or send a free care request instead.']);
         }
+        Unlock::firstOrCreate(['family_id' => $family->id, 'caregiver_id' => $caregiver->id]);
         $caregiver->notify(new PlatformNotice('A family viewed your contact',
-            $family->name.' in '.($family->familyProfile->town ?: $family->familyProfile->county ?: 'Kenya').' unlocked your phone number and may call you. Their number: +'.$family->phone.'.',
+            $family->name.' in '.($family->familyProfile->town ?: $family->familyProfile->county ?: 'Kenya').' viewed your phone number and may call you. Their number: +'.$family->phone.'.',
             route('caregiver.contacts')));
-        return back()->with('status', 'Contact unlocked. Call to arrange an interview. Always meet first and check references.');
+        return back()->with('status', 'Here is the phone number. Call to arrange an interview. Always meet first and check references.');
     }
 
     public function contacts(Request $request)
@@ -98,7 +91,7 @@ class FamilyController extends Controller
             'care_type' => ['required', Rule::in(array_keys(config('noc.care_types')))],
             'arrangement' => ['required', Rule::in(array_keys(config('noc.arrangements')))],
             'start_date' => 'nullable|date|after_or_equal:today',
-            'message' => 'required|string|min:20|max:1000',
+            'message' => ['required', 'string', 'min:20', 'max:1000', new NoContactDetails],
         ], ['message.min' => 'Describe the care needed (at least 20 characters).']);
 
         if (CareRequest::where('family_id', $family->id)->where('caregiver_id', $caregiver->id)->where('status', 'pending')->exists()) {
@@ -129,7 +122,7 @@ class FamilyController extends Controller
         $family = $request->user();
         // Only families who actually used this caregiver (accepted request or hired through a job) can review.
         abort_unless($caregiver->isCaregiver() && $family->hasWorkedWith($caregiver), 403);
-        $data = $request->validate(['stars' => 'required|integer|between:1,5', 'comment' => 'nullable|string|max:1000']);
+        $data = $request->validate(['stars' => 'required|integer|between:1,5', 'comment' => ['nullable', 'string', 'max:1000', new NoContactDetails]]);
         Review::updateOrCreate(['family_id' => $family->id, 'caregiver_id' => $caregiver->id], $data);
 
         $q = Review::where('caregiver_id', $caregiver->id);

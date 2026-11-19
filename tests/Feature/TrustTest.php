@@ -170,11 +170,24 @@ class TrustTest extends TestCase
         $selfie = $cg->documents()->create(['type' => 'selfie', 'path' => 'documents/s.jpg', 'original_name' => 's.jpg']);
         $gc = $cg->documents()->create(['type' => 'good_conduct', 'path' => 'documents/gc.pdf', 'original_name' => 'gc.pdf']);
         $fam = $this->family();
-        $pass = ContactPass::create(['user_id' => $fam->id, 'plan_id' => Plan::where('audience', 'family')->first()->id, 'credits_total' => 3, 'expires_at' => now()->addDays(30)]);
-        Unlock::create(['family_id' => $fam->id, 'caregiver_id' => $cg->id, 'contact_pass_id' => $pass->id]);
+        Unlock::create(['family_id' => $fam->id, 'caregiver_id' => $cg->id]);
         $this->actingAs($fam)->get("/documents/{$gc->id}")->assertOk();
         $this->actingAs($fam)->get("/documents/{$selfie->id}")->assertForbidden();
         $this->actingAs($fam)->get("/caregivers/{$cg->id}")->assertDontSee('Selfie holding');
+    }
+
+    public function test_free_contact_views_are_capped_per_day(): void
+    {
+        config(['noc.free_contacts_per_day' => 2]);
+        $fam = $this->family();
+        $a = $this->caregiver('A');
+        $b = $this->caregiver('B');
+        $c = $this->caregiver('C');
+        $this->actingAs($fam)->post("/family/caregivers/{$a->id}/unlock")->assertSessionHasNoErrors();
+        $this->actingAs($fam)->post("/family/caregivers/{$b->id}/unlock")->assertSessionHasNoErrors();
+        $this->actingAs($fam)->post("/family/caregivers/{$c->id}/unlock")->assertSessionHasErrors('unlock');
+        Unlock::query()->update(['created_at' => now()->subDays(2)]);
+        $this->actingAs($fam)->post("/family/caregivers/{$c->id}/unlock")->assertSessionHasNoErrors();
     }
 
     public function test_trust_pages_load(): void

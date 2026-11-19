@@ -78,6 +78,9 @@ return [
     ],
 
     // Checks an admin must tick before approving an account.
+    // Families use the site free; this caps how many caregiver numbers one family can view per 24 hours.
+    'free_contacts_per_day' => 15,
+
     'verification_checks' => [
         'caregiver' => [
             'id' => 'National ID is clear, genuine-looking, and the name matches the profile',

@@ -9,6 +9,7 @@ use App\Models\Consent;
 use App\Models\JobApplication;
 use App\Models\User;
 use App\Notifications\PlatformNotice;
+use App\Rules\NoContactDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
@@ -45,7 +46,7 @@ class JobController extends Controller
     {
         $this->own($request, $job);
         $job->load(['applications' => fn ($q) => $q->with('caregiver.caregiverProfile')->orderByRaw("CASE status WHEN 'hired' THEN 1 WHEN 'shortlisted' THEN 2 WHEN 'applied' THEN 3 ELSE 4 END")]);
-        return view('family.jobs.show', ['job' => $job, 'credits' => $request->user()->creditsLeft()]);
+        return view('family.jobs.show', ['job' => $job]);
     }
 
     public function edit(Request $request, CareJob $job)
@@ -89,17 +90,17 @@ class JobController extends Controller
     private function validated(Request $request): array
     {
         $data = $request->validate([
-            'title' => 'required|string|max:150',
+            'title' => ['required', 'string', 'max:150', new NoContactDetails],
             'care_type' => ['required', Rule::in(array_keys(config('noc.care_types')))],
-            'care_recipient' => 'required|string|max:255',
+            'care_recipient' => ['required', 'string', 'max:255', new NoContactDetails],
             'arrangement' => ['required', Rule::in(array_keys(config('noc.arrangements')))],
             'county' => ['required', Rule::in(config('noc.counties'))],
             'town' => 'required|string|max:80',
             'start_date' => 'nullable|date|after_or_equal:today',
             'pay_unit' => ['required', Rule::in(array_keys(config('noc.pay_units')))],
             'pay_amount' => 'nullable|required_unless:pay_unit,negotiable|integer|min:1|max:1000000',
-            'description' => 'required|string|max:3000',
-            'requirements' => 'nullable|string|max:2000',
+            'description' => ['required', 'string', 'max:3000', new NoContactDetails],
+            'requirements' => ['nullable', 'string', 'max:2000', new NoContactDetails],
         ], ['pay_amount.required_unless' => 'Enter the pay you are offering, or choose "negotiable".']);
         if ($data['pay_unit'] === 'negotiable') {
             $data['pay_amount'] = null;

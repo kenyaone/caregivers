@@ -16,7 +16,7 @@
             @endif
         </div>
     </div>
-    <div class="mt-6 flex items-center justify-between"><h2 class="font-semibold text-lg">Applicants</h2><span class="text-sm text-slate-500">Contact credits left: <b>{{ $credits }}</b> · <a class="link" href="{{ route('payments.index') }}">Buy more</a></span></div>
+    <div class="mt-6 flex items-center justify-between"><h2 class="font-semibold text-lg">Applicants</h2><span class="text-sm text-slate-500">Calling applicants is free</span></div>
     <div class="mt-3 space-y-4">
         @forelse($job->applications as $a)
             @php($c = $a->caregiver)
@@ -34,7 +34,7 @@
                     @if(auth()->user()->hasUnlocked($c))
                         <a class="btn btn-ghost btn-sm" href="tel:+{{ $c->phone }}">📞 +{{ $c->phone }}</a>
                     @else
-                        <form method="POST" action="{{ route('family.unlock', $c) }}">@csrf<button class="btn btn-ghost btn-sm" onclick="return confirm('Use 1 credit to unlock this contact?')">Unlock contact (1 credit)</button></form>
+                        <form method="POST" action="{{ route('family.unlock', $c) }}">@csrf<button class="btn btn-ghost btn-sm">📞 Show phone number</button></form>
                     @endif
                     @if(in_array($a->status, ['applied', 'shortlisted']))
                         <form method="POST" action="{{ route('family.applications.decide', $a) }}" class="flex gap-2">@csrf

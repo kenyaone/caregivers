@@ -24,7 +24,7 @@
             @if($profile->verification_status === 'pending')<div class="alert alert-info">We're checking your documents and will call your referee. We'll notify you.</div>@endif
             @if($profile->verification_status === 'rejected')<div class="alert alert-error">Verification needs attention: {{ $profile->verification_note }}</div>@endif
             @if(in_array($profile->verification_status, ['incomplete', 'rejected']))
-                <p class="text-slate-600">Tip: also upload a reference letter or put a referee's name and phone in "About me". We call one referee before approving.</p>
+                <p class="text-slate-600">Add a referee on your <a class="link" href="{{ route('caregiver.profile') }}">profile</a> (only our team sees it) or upload a reference letter. We call one referee before approving.</p>
                 <form method="POST" action="{{ route('caregiver.verify') }}" class="mt-3">@csrf<button class="btn btn-primary">Submit for verification</button></form>
             @endif
         </div>
@@ -82,7 +82,7 @@
                 <h2 class="font-semibold text-base">Your profile</h2>
                 <div>Status: <x-status :value="$profile->verification_status"/></div>
                 <div>Rating: <x-stars :avg="$profile->rating_avg" :count="$profile->rating_count"/></div>
-                <div>Families who unlocked you: <b>{{ $unlocks }}</b> · <a href="{{ route('caregiver.contacts') }}" class="link">See who</a></div>
+                <div>Families who viewed your number: <b>{{ $unlocks }}</b> · <a href="{{ route('caregiver.contacts') }}" class="link">See who</a></div>
                 <div>Available: <b>{{ $profile->available ? 'Yes' : 'No (hidden from search)' }}</b></div>
                 @if($profile->good_conduct_issued_on)<div>Good Conduct counts until: <b>{{ $profile->goodConductValidUntil()->format('j M Y') }}</b></div>@endif
                 <div class="flex gap-2 pt-3"><a href="{{ route('caregiver.profile') }}" class="btn btn-ghost btn-sm">Edit profile</a>@if($profile->verification_status === 'approved')<a href="{{ route('caregivers.show', auth()->user()) }}" class="btn btn-ghost btn-sm">View public profile</a>@endif</div>

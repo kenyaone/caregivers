@@ -14,6 +14,9 @@ class PaymentController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        if (! $user->isCaregiver()) {
+            return redirect()->route('dashboard')->with('status', 'CareGivers254 is free for families. There is nothing to pay.');
+        }
         $audience = $user->isCaregiver() ? 'caregiver' : 'family';
         return view('shared.payments', [
             'plans' => Plan::for($audience)->get(),
@@ -26,6 +29,7 @@ class PaymentController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
+        abort_unless($user->isCaregiver(), 403);
         $data = $request->validate([
             'plan_id' => 'required|exists:plans,id',
             'reference' => ['required', 'regex:/^[A-Za-z0-9]{10}$/', 'unique:payments,reference'],

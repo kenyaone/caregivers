@@ -76,8 +76,7 @@ class QualificationTest extends TestCase
         $fam = User::factory()->create(['role' => 'family', 'phone' => '254722000111']);
         FamilyProfile::create(['user_id' => $fam->id, 'county' => 'Nairobi']);
         Consent::grantAll($fam);
-        $pass = ContactPass::create(['user_id' => $fam->id, 'plan_id' => Plan::where('audience', 'family')->first()->id, 'credits_total' => 3, 'expires_at' => now()->addDays(30)]);
-        Unlock::create(['family_id' => $fam->id, 'caregiver_id' => $cg->id, 'contact_pass_id' => $pass->id]);
+        Unlock::create(['family_id' => $fam->id, 'caregiver_id' => $cg->id]);
         $this->actingAs($fam)->get("/documents/{$withCert->document_id}")->assertOk();
 
         $other = User::factory()->create(['role' => 'caregiver', 'phone' => '254733000111']);

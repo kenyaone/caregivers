@@ -18,7 +18,6 @@ class PublicController extends Controller
                 ->orderByDesc('rating_avg')->orderByDesc('badges_count')->latest('verified_at')->limit(6)->get(),
             'jobs' => CareJob::open()->latest()->limit(4)->get(),
             'caregiverPlan' => Plan::for('caregiver')->first(),
-            'familyPlan' => Plan::for('family')->first(),
         ]);
     }
 
@@ -71,7 +70,6 @@ class PublicController extends Controller
             'placements' => $profile->placementsCount(),
             'qualifications' => $caregiver->qualifications()->whereIn('status', ['approved', 'pending', 'unverified'])->orderByRaw("status = 'approved' desc")->orderByDesc('year')->get(),
             'alreadyReported' => $viewer && \App\Models\Report::where('reporter_id', $viewer->id)->where('reported_id', $caregiver->id)->where('status', 'open')->exists(),
-            'credits' => $viewer?->isFamily() ? $viewer->creditsLeft() : 0,
         ]);
     }
 
@@ -95,6 +93,6 @@ class PublicController extends Controller
 
     public function pricing()
     {
-        return view('public.pricing', ['caregiverPlans' => Plan::for('caregiver')->get(), 'familyPlans' => Plan::for('family')->get()]);
+        return view('public.pricing', ['caregiverPlans' => Plan::for('caregiver')->get()]);
     }
 }

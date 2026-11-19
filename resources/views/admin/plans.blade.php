@@ -2,9 +2,9 @@
 @section('content')
 <div class="max-w-5xl mx-auto px-4 py-10">
     <h1 class="text-2xl font-bold">Plans & prices</h1>
-    <p class="text-sm text-slate-600 mt-1">Caregiver plans are subscriptions. Family plans are contact passes: "credits" is how many caregiver contacts they can unlock before the pass expires.</p>
+    <p class="text-sm text-slate-600 mt-1">Caregiver subscriptions are the only paid plans. Families use CareGivers254 free.</p>
     <div class="mt-6 space-y-4">
-        @foreach($plans->push(new \App\Models\Plan(['is_active' => true, 'audience' => 'family'])) as $plan)
+        @foreach($plans->where('audience', 'caregiver')->push(new \App\Models\Plan(['is_active' => true, 'audience' => 'caregiver'])) as $plan)
             <form method="POST" action="{{ route('admin.plans.save', $plan->exists ? $plan : null) }}" class="card grid gap-3 md:grid-cols-7 items-end">
                 @csrf
                 <div class="md:col-span-7 text-xs font-semibold uppercase text-slate-500">{{ $plan->exists ? 'Edit plan' : 'Add a new plan' }}</div>
