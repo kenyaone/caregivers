@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="utf-8">
+<head><meta charset="utf-8">
+    
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ isset($title) ? $title.' · ' : '' }}{{ config('noc.brand') }}</title>
@@ -14,12 +14,19 @@
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 antialiased flex flex-col">
 @php($u = auth()->user())
+<div class="cgi-only cgi-block" style="background:linear-gradient(90deg,#fbbf24,#fcd34d);color:#1c1917">
+    <div style="max-width:72rem;margin:0 auto;padding:.55rem 1rem;display:flex;align-items:center;justify-content:center;gap:.75rem;flex-wrap:wrap;font-size:.875rem;text-align:center">
+        <span><span aria-hidden="true">&#128242;</span> <b>Get the CareGivers254 app</b><span class="hidden sm:inline"> &middot; free, works on any phone, instant alerts</span></span>
+        <button type="button" data-cg-install class="cgi-btn" style="display:inline-flex;background:#0f766e;color:#fff;padding:.35rem .9rem;font-size:.8rem">Install now</button>
+    </div>
+</div>
 <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
     <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         <a href="{{ route('home') }}" class="flex items-center gap-2 font-extrabold text-lg text-teal-800">
             <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-teal-700 text-white text-sm">&hearts;</span>
             CareGivers<span class="text-amber-500">254</span>
         </a>
+        <button type="button" data-cg-install class="cgi-only cgi-btn cgi-pill cgi-pulse" style="margin-left:auto"><span aria-hidden="true">&#128242;</span> Install app</button>
         <input type="checkbox" id="nav" class="peer hidden">
         <label for="nav" class="md:hidden p-2 -mr-2 cursor-pointer" aria-label="Menu">
             <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>

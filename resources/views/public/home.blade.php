@@ -54,12 +54,31 @@
             <div style="margin-top:2rem;display:flex;flex-wrap:wrap;gap:.75rem">
                 <a href="{{ route('caregivers.index') }}" class="cg-btn cg-gold">Find a caregiver →</a>
                 <a href="{{ route('register', ['as' => 'caregiver']) }}" class="cg-btn cg-glass">I'm a caregiver, find work</a>
+                <button type="button" data-cg-install class="cgi-only cg-btn cg-glass" style="cursor:pointer"><span aria-hidden="true">&#128242;</span> Install the app</button>
             </div>
             <div class="cg-trust"><span>ID & Good Conduct checked</span><span>References called</span><span>Families rate every caregiver</span></div>
         </div>
         <div class="cg-photo" aria-hidden="true">
             <img src="{{ asset('img/nurse-10.jpg') }}" alt="">
             <div class="cg-badge"><b>✓ Verified caregiver</b>National ID, Good Conduct certificate and referee confirmed by our team.</div>
+        </div>
+    </div>
+</section>
+
+{{-- Get the app --}}
+<section class="cgi-only cgi-block" style="background:#fffbeb;border-bottom:1px solid #fde68a">
+    <div class="cg-sec" style="padding-top:3.5rem;padding-bottom:3.5rem;display:grid;gap:2rem;align-items:center" id="get-app">
+        <div style="display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap">
+            <img src="/icons/icon-192.png" alt="CareGivers254 app icon" style="width:96px;height:96px;border-radius:24px;box-shadow:0 20px 40px -15px rgba(15,118,110,.6)">
+            <div style="flex:1;min-width:16rem">
+                <div class="cg-eyebrow" style="color:#b45309">Free app</div>
+                <h2 class="cg-h2" style="margin-top:.25rem">Put CareGivers254 on your phone</h2>
+                <p style="margin-top:.6rem;color:#57534e;line-height:1.6;max-width:36rem">Install it in seconds, no Play Store or App Store needed and under 1&nbsp;MB. Caregivers get job and request alerts the moment they come in; families can reach their caregivers in one tap.</p>
+                <div style="margin-top:1.25rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center">
+                    <button type="button" data-cg-install class="cg-btn cg-gold cgi-pulse" style="cursor:pointer;border:0;font-size:1.05rem;padding:1rem 1.6rem"><span aria-hidden="true">&#128242;</span> Install the app</button>
+                    <span style="font-size:.85rem;color:#78716c">Android, iPhone and computers</span>
+                </div>
+            </div>
         </div>
     </div>
 </section>

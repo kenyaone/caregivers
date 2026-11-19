@@ -1,5 +1,5 @@
 /* CareGivers254 service worker */
-var VERSION = 'care-v1';
+var VERSION = 'care-v2';
 var STATIC_CACHE = VERSION + '-static';
 var PAGE_CACHE = VERSION + '-pages';
 var PRECACHE = ['/offline.html', '/css/app.css', '/favicon.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/manifest.webmanifest'];
