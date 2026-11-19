@@ -39,10 +39,12 @@ return [
     'document_types' => [
         'caregiver' => [
             'national_id' => 'National ID (front & back)',
+            'selfie' => 'Selfie holding your ID (take it now)',
             'good_conduct' => 'Police Certificate of Good Conduct',
             'certificate' => 'Caregiver / CNA / training certificate',
             'reference_letter' => 'Reference letter',
             'cv' => 'CV',
+            'skill_cert' => 'Skill certificate',
             'other' => 'Other',
         ],
         'family' => [
@@ -78,8 +80,9 @@ return [
     // Checks an admin must tick before approving an account.
     'verification_checks' => [
         'caregiver' => [
-            'id' => 'National ID is clear, genuine-looking, and the name and photo match the profile',
-            'good_conduct' => 'Certificate of Good Conduct is in the caregiver\'s name, shows no record, was issued within the last 12 months, and its serial/QR code checks out',
+            'id' => 'National ID is clear, genuine-looking, and the name matches the profile',
+            'selfie' => 'Selfie holding the ID shows the same person as the ID photo and the profile photo',
+            'good_conduct' => 'Certificate of Good Conduct is in the caregiver\'s name, shows no record, was issued within the last 6 months (enter the issue date below), and its serial/QR code checks out',
             'references' => 'At least one referee was phoned and confirmed the caregiver\'s work and character',
             'interview' => 'Caregiver was phoned and confirmed their experience and the care types they listed',
         ],

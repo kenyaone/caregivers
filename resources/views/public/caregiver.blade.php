@@ -31,6 +31,32 @@
         </dl>
         @if($profile->bio)<div class="mt-6"><h2 class="font-semibold">About me</h2><p class="mt-1 whitespace-pre-line text-slate-700">{{ $profile->bio }}</p></div>@endif
 
+        @php($earned = $skills->filter->isEarned())
+        @php($declared = $skills->reject->isEarned()->filter->declared)
+        <div class="cg-trust-panel mt-6">
+            <h2 class="font-semibold">Why you can trust {{ $caregiver->publicName() }}</h2>
+            <ul class="cg-trust-list">
+                @if($profile->verification_status === 'approved')
+                    <li class="ok">National ID checked and matched to a live selfie</li>
+                    @if($profile->good_conduct_issued_on)<li class="ok">Police Certificate of Good Conduct issued {{ $profile->good_conduct_issued_on->format('M Y') }}, no record</li>@endif
+                    <li class="ok">Referee phoned and confirmed their work</li>
+                    <li class="ok">Interviewed by our team</li>
+                    @if($profile->verified_at)<li class="ok">Verified {{ $profile->verified_at->format('M Y') }}</li>@endif
+                @endif
+                <li class="{{ $placements ? 'ok' : 'na' }}">{{ $placements }} {{ \Illuminate\Support\Str::plural('placement', $placements) }} through CareGivers254</li>
+                <li class="na">Member since {{ $caregiver->created_at->format('M Y') }}</li>
+            </ul>
+            <h3 class="font-semibold text-sm mt-4">Skills</h3>
+            <div class="mt-2 flex flex-wrap gap-2">
+                @forelse($earned as $s)
+                    <span class="skill-badge {{ $s->isCertified() ? 'skill-cert' : 'skill-tested' }}" title="{{ $s->isCertified() ? 'Certificate checked by our team' : 'Passed our '.$s->label().' quiz' }}">{{ $s->isCertified() ? '🎓' : '✓' }} {{ $s->label() }} <small>{{ $s->isCertified() ? 'certificate checked' : 'tested' }}</small></span>
+                @empty
+                    <span class="text-sm text-slate-500">No tested skills yet.</span>
+                @endforelse
+                @foreach($declared as $s)<span class="skill-badge skill-declared" title="The caregiver says they have this skill">{{ $s->label() }} <small>self-declared</small></span>@endforeach
+            </div>
+        </div>
+
         <div class="mt-8 border-t pt-6">
             @if($unlocked)
                 <div class="alert alert-success">
@@ -38,7 +64,7 @@
                     <div class="text-xs mt-1">Meet in person, check the original ID and Good Conduct certificate, and call the references before agreeing terms.</div>
                 </div>
                 @if($viewer?->isFamily())
-                    <div class="mt-3 text-sm">Documents: @foreach($caregiver->documents->where('type', '!=', 'national_id') as $d)<a class="link" target="_blank" href="{{ route('documents.download', $d) }}">{{ $d->label() }}</a>@if(! $loop->last), @endif @endforeach</div>
+                    <div class="mt-3 text-sm">Documents: @foreach($caregiver->documents->whereNotIn('type', \App\Models\Document::PRIVATE_TYPES) as $d)<a class="link" target="_blank" href="{{ route('documents.download', $d) }}">{{ $d->label() }}</a>@if(! $loop->last), @endif @endforeach</div>
                 @endif
             @elseif($viewer?->isFamily())
                 <div class="grid gap-4 md:grid-cols-2">
@@ -70,6 +96,9 @@
             @endif
         </div>
 
+        @if(! $canReview && $viewer?->isFamily() && $unlocked && ! $reviews->contains('family_id', $viewer->id))
+            <p class="mt-6 text-sm text-slate-500">You can rate {{ $caregiver->publicName() }} once they accept your care request or you hire them through one of your jobs. This keeps reviews genuine.</p>
+        @endif
         @if($canReview)
             <form method="POST" action="{{ route('family.review', $caregiver) }}" class="mt-6 border-t pt-6 flex flex-wrap items-end gap-3">
                 @csrf
@@ -82,6 +111,9 @@
         @if($reviews->count())
             <h2 class="font-semibold mt-8">Reviews from families</h2>
             <div class="mt-2 space-y-2 text-sm">@foreach($reviews as $r)<div class="rounded-lg bg-slate-50 p-3"><span class="text-amber-500">{{ str_repeat('★', $r->stars) }}</span> {{ $r->comment }} <span class="text-xs text-slate-500">· {{ $r->family->publicName() }}, {{ $r->created_at->format('M Y') }}</span></div>@endforeach</div>
+        @endif
+        @if($viewer && $viewer->id !== $caregiver->id && ! $viewer->isAdmin())
+            @include('partials.report-form', ['target' => $caregiver, 'label' => 'Report a concern about this caregiver', 'alreadyReported' => $alreadyReported])
         @endif
     </div>
 </div>

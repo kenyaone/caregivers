@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\CareRequest;
+use App\Models\CaregiverSkill;
 use App\Models\CaregiverProfile;
 use App\Models\Consent;
 use App\Models\ContactPass;
@@ -14,6 +15,7 @@ use App\Models\Unlock;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /** Demo data for testing. All demo accounts use @demo.test emails; --purge removes them. */
 class DemoData extends Command
@@ -36,9 +38,9 @@ class DemoData extends Command
         DB::transaction(function () use ($pw, $cgPlan, $famPlan) {
             $cgs = [];
             $defs = [
-                ['Grace Njeri', 'Experienced elderly & dementia caregiver', ['elderly', 'dementia', 'bedridden'], ['live_in', 'day'], 'Nairobi', 'Kileleshwa', 'female', 38, 8, 22000, 'English, Kiswahili, Kikuyu', 'Caregiver certificate, MTTI Eldoret'],
+                ['Grace Njeri', 'Experienced elderly & dementia caregiver', ['elderly', 'dementia', 'bedridden'], ['live_in', 'day'], 'Nairobi', 'Kileleshwa', 'female', 38, 8, 22000, 'English, Kiswahili, Kikuyu', 'Caregiver certificate'],
                 ['Mercy Achieng', 'Loving nanny for babies & toddlers', ['children', 'special_needs'], ['day', 'live_in'], 'Nairobi', 'South B', 'female', 29, 5, 15000, 'English, Kiswahili, Dholuo', 'ECDE certificate; First Aid'],
-                ['Peter Kiprono', 'Male caregiver: mobility & stroke rehab', ['disability', 'rehab', 'bedridden'], ['live_in', 'night'], 'Uasin Gishu', 'Eldoret', 'male', 34, 6, 20000, 'English, Kiswahili, Kalenjin', 'Caregiver certificate, MTTI Eldoret'],
+                ['Peter Kiprono', 'Male caregiver: mobility & stroke rehab', ['disability', 'rehab', 'bedridden'], ['live_in', 'night'], 'Uasin Gishu', 'Eldoret', 'male', 34, 6, 20000, 'English, Kiswahili, Kalenjin', 'Caregiver certificate'],
                 ['Faith Wambui', 'Live-in caregiver & house manager', ['live_in', 'house_help', 'elderly'], ['live_in'], 'Kiambu', 'Ruiru', 'female', 42, 12, 18000, 'English, Kiswahili, Kikuyu', 'Home-based care training'],
                 ['Janet Chepkemoi', 'Palliative & end-of-life care support', ['palliative', 'bedridden', 'elderly'], ['day', 'night', 'hourly'], 'Uasin Gishu', 'Eldoret', 'female', 45, 15, 1200, 'English, Kiswahili, Nandi', 'Palliative care course; CNA'],
                 ['Halima Omar', 'Caring nanny & special-needs support', ['children', 'special_needs'], ['day', 'weekends'], 'Mombasa', 'Nyali', 'female', 31, 7, 14000, 'English, Kiswahili, Arabic', 'Special-needs care course'],
@@ -51,7 +53,9 @@ class DemoData extends Command
                     'gender' => $gender, 'age' => $age, 'years_experience' => $yrs, 'expected_pay' => $pay, 'pay_unit' => $pay < 5000 ? 'per_day' : 'per_month',
                     'languages' => $langs, 'training' => $training, 'available' => true,
                     'bio' => "Demo profile. I have {$yrs} years of experience in ".strtolower(implode(', ', array_map(fn ($t) => config('noc.care_types')[$t], $types))).'. Referee: available on request.'])
-                    ->forceFill(['verification_status' => 'approved', 'verified_at' => now()->subDays(10)])->save();
+                    ->forceFill(['verification_status' => 'approved', 'verified_at' => now()->subDays(10),
+                        // Esther's certificate is about to expire so the reminder can be seen
+                        'good_conduct_issued_on' => ($i === 6 ? now()->subMonths(5)->subDays(10) : now()->subDays(20 + $i * 9))->toDateString()])->save();
                 $pay = Payment::create(['user_id' => $u->id, 'plan_id' => $cgPlan->id, 'amount' => $cgPlan->price, 'phone' => $u->phone, 'method' => 'manual',
                     'reference' => 'DEMOCG'.str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT), 'status' => 'paid', 'paid_at' => now()->subDays(9)]);
                 $u->subscriptions()->create(['plan_id' => $cgPlan->id, 'payment_id' => $pay->id, 'starts_at' => now()->subDays(9), 'ends_at' => now()->subDays(9)->addDays($cgPlan->duration_days)]);
@@ -93,10 +97,34 @@ class DemoData extends Command
             CareRequest::create(['family_id' => $kiprotich->id, 'caregiver_id' => $janet->id, 'care_type' => 'bedridden', 'arrangement' => 'night', 'message' => 'Demo request: need a night carer for my father who is bedridden.', 'status' => 'pending']);
             CareRequest::create(['family_id' => $amina->id, 'caregiver_id' => $mercy->id, 'care_type' => 'children', 'arrangement' => 'day', 'message' => 'Demo request: nanny for twins in Nyali, weekdays.', 'status' => 'accepted']);
 
-            // Wanjiru already unlocked and reviewed Grace
+            // Wanjiru unlocked Grace, Grace accepted her request, and Wanjiru reviewed her
+            CareRequest::create(['family_id' => $wanjiru->id, 'caregiver_id' => $grace->id, 'care_type' => 'dementia', 'arrangement' => 'live_in', 'message' => 'Demo request: live-in care for my mother with dementia.', 'status' => 'accepted']);
             Unlock::create(['family_id' => $wanjiru->id, 'caregiver_id' => $grace->id, 'contact_pass_id' => $wanjiru->contactPasses()->first()->id]);
             Review::create(['family_id' => $wanjiru->id, 'caregiver_id' => $grace->id, 'stars' => 5, 'comment' => 'Patient and kind with my mother. Highly recommended.']);
             $grace->caregiverProfile->forceFill(['rating_avg' => 5, 'rating_count' => 1])->save();
+
+            // Skills and badges
+            [, , , , , , $esther, $daniel] = $cgs;
+            $skills = [
+                [$grace, 'dementia_care', 'tested'], [$grace, 'elderly_care', 'tested'], [$grace, 'medication_support', 'declared'],
+                [$mercy, 'baby_child_care', 'tested'], [$mercy, 'first_aid', 'certified'],
+                [$peter, 'bedridden_care', 'tested'], [$peter, 'disability_support', 'tested'], [$peter, 'first_aid', 'certified'],
+                [$faith, 'elderly_care', 'tested'], [$faith, 'infection_control', 'declared'],
+                [$janet, 'bedridden_care', 'certified'], [$janet, 'medication_support', 'tested'],
+                [$esther, 'elderly_care', 'declared'],
+                [$daniel, 'bedridden_care', 'tested'], [$daniel, 'first_aid', 'pending'],
+            ];
+            Storage::disk('local')->put('documents/demo-certificate.pdf', "%PDF-1.1\n% Demo certificate placeholder\n");
+            foreach ($skills as [$u, $skill, $level]) {
+                $row = CaregiverSkill::create(['user_id' => $u->id, 'skill' => $skill, 'declared' => true]);
+                if ($level === 'tested') {
+                    $row->forceFill(['quiz_passed_at' => now()->subDays(5), 'quiz_score' => 9])->save();
+                } elseif (in_array($level, ['certified', 'pending'], true)) {
+                    $doc = $u->documents()->create(['type' => 'skill_cert', 'path' => 'documents/demo-certificate.pdf', 'original_name' => 'demo-'.$skill.'-certificate.pdf']);
+                    $row->forceFill(['cert_status' => $level === 'certified' ? 'approved' : 'pending', 'certificate_document_id' => $doc->id,
+                        'certified_at' => $level === 'certified' ? now()->subDays(4) : null])->save();
+                }
+            }
 
             User::where('email', 'like', '%@demo.test')->get()->each(fn ($u) => Consent::grantAll($u));
         });
@@ -106,7 +134,9 @@ class DemoData extends Command
             ['family1@demo.test', 'Wanjiru (Nairobi): 2 credits, 2 jobs with applicants, unlocked & reviewed Grace'],
             ['family2@demo.test', 'Kiprotich (Eldoret): 3 credits, night-carer job, request to Janet'],
             ['family3@demo.test', 'Amina (Mombasa): no credits, payment awaiting admin'],
-            ['caregiver1@demo.test', 'Grace Njeri, elderly & dementia (Nairobi)'],
+            ['caregiver1@demo.test', 'Grace Njeri, elderly & dementia (Nairobi): 2 tested badges'],
+            ['caregiver7@demo.test', 'Esther Nekesa: Good Conduct about to expire'],
+            ['caregiver8@demo.test', 'Daniel Mutua: First Aid certificate waiting for admin'],
             ['caregiver3@demo.test', 'Peter Kiprono, rehab (Eldoret)'],
             ['caregiver5@demo.test', 'Janet Chepkemoi, palliative (Eldoret): pending request'],
             ['caregiver9@demo.test', 'Lilian Moraa: awaiting verification'],

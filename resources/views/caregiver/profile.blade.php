@@ -27,7 +27,7 @@
         <x-field name="age" label="Age (optional)" type="number" min="18" max="80" :value="$profile->age"/>
         <x-field name="years_experience" label="Years of experience" type="number" min="0" max="60" :value="$profile->years_experience"/>
         <x-field name="languages" label="Languages" :value="$profile->languages" placeholder="e.g. English, Kiswahili, Luhya"/>
-        <div class="md:col-span-2"><x-field name="training" label="Training" :value="$profile->training" placeholder="e.g. Caregiver certificate, MTTI Eldoret (2024); First Aid"/></div>
+        <div class="md:col-span-2"><x-field name="training" label="Training" :value="$profile->training" placeholder="e.g. Caregiver certificate (2024); First Aid, St John Ambulance"/></div>
         <x-field name="expected_pay" label="Expected pay (KES)" type="number" min="1" :value="$profile->expected_pay"/>
         <x-select name="pay_unit" label="Pay is" :options="config('noc.pay_units')" :value="$profile->pay_unit" :placeholder="false"/>
         <div class="md:col-span-2"><x-textarea name="bio" label="About me" :value="$profile->bio" rows="5" placeholder="Your experience, the kind of people you've cared for, what you're good at, and a referee's name and phone." required/></div>

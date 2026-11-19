@@ -127,7 +127,8 @@ class FamilyController extends Controller
     public function review(Request $request, User $caregiver)
     {
         $family = $request->user();
-        abort_unless($caregiver->isCaregiver() && $family->hasUnlocked($caregiver), 403);
+        // Only families who actually used this caregiver (accepted request or hired through a job) can review.
+        abort_unless($caregiver->isCaregiver() && $family->hasWorkedWith($caregiver), 403);
         $data = $request->validate(['stars' => 'required|integer|between:1,5', 'comment' => 'nullable|string|max:1000']);
         Review::updateOrCreate(['family_id' => $family->id, 'caregiver_id' => $caregiver->id], $data);
 

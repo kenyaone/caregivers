@@ -34,6 +34,15 @@ class User extends Authenticatable
     public function consents() { return $this->hasMany(Consent::class); }
     public function careJobs() { return $this->hasMany(CareJob::class, 'family_id'); }
     public function applications() { return $this->hasMany(JobApplication::class, 'caregiver_id'); }
+    public function skills() { return $this->hasMany(CaregiverSkill::class); }
+
+    /** A family "worked with" a caregiver once a care request was accepted or the caregiver was hired for one of its jobs. */
+    public function hasWorkedWith(User $caregiver): bool
+    {
+        return CareRequest::where('family_id', $this->id)->where('caregiver_id', $caregiver->id)->where('status', 'accepted')->exists()
+            || JobApplication::where('caregiver_id', $caregiver->id)->where('status', 'hired')
+                ->whereHas('job', fn ($q) => $q->where('family_id', $this->id))->exists();
+    }
 
     public function profile()
     {

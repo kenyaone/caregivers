@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CareJob;
 use App\Models\CaregiverProfile;
+use App\Models\CaregiverSkill;
 use App\Models\FamilyProfile;
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Models\Report;
 use App\Models\Review;
 use App\Models\Subscription;
 use App\Models\Unlock;
@@ -33,6 +35,8 @@ class AdminController extends Controller
             ],
             'pendingVerifications' => CaregiverProfile::where('verification_status', 'pending')->count() + FamilyProfile::where('verification_status', 'pending')->count(),
             'pendingPayments' => Payment::where('status', 'pending')->count(),
+            'openReports' => Report::where('status', 'open')->count(),
+            'pendingCerts' => CaregiverSkill::where('cert_status', 'pending')->count(),
         ]);
     }
 
@@ -65,9 +69,18 @@ class AdminController extends Controller
 
     public function decide(Request $request, User $user)
     {
-        $data = $request->validate(['decision' => 'required|in:approved,rejected', 'note' => 'nullable|required_if:decision,rejected|string|max:255', 'checks' => 'array']);
         $profile = $user->profile();
         abort_unless($profile, 404);
+        $gcRule = $user->isCaregiver() ? self::goodConductDateRule() : ['nullable'];
+        if ($user->isCaregiver()) {
+            array_unshift($gcRule, 'nullable', 'required_if:decision,approved');
+        }
+        $data = $request->validate([
+            'decision' => 'required|in:approved,rejected',
+            'note' => 'nullable|required_if:decision,rejected|string|max:255',
+            'checks' => 'array',
+            'good_conduct_issued_on' => $gcRule,
+        ], ['good_conduct_issued_on.after' => 'The Good Conduct certificate is older than '.config('skills.good_conduct_valid_months').' months. Ask for a new one.']);
 
         $checklist = self::checklistFor($user);
         $ticked = array_keys(array_filter($request->input('checks', [])));
@@ -82,6 +95,9 @@ class AdminController extends Controller
             'verified_by' => $request->user()->id,
             'verification_checks' => ['ticked' => array_values(array_intersect($ticked, array_keys($checklist))), 'by' => $request->user()->email, 'at' => now()->toDateTimeString()],
         ])->save();
+        if ($user->isCaregiver() && ! empty($data['good_conduct_issued_on'])) {
+            $profile->forceFill(['good_conduct_issued_on' => $data['good_conduct_issued_on'], 'good_conduct_warned_at' => null])->save();
+        }
 
         $user->notify($data['decision'] === 'approved'
             ? new PlatformNotice('Account verified', $user->isCaregiver()
@@ -90,6 +106,81 @@ class AdminController extends Controller
             : new PlatformNotice('Verification needs attention', 'We could not verify your account: '.$data['note'].'. Update your details and resubmit.', route('dashboard')));
 
         return redirect()->route('admin.verifications')->with('status', $user->name.' marked '.$data['decision'].'.');
+    }
+
+    public static function goodConductDateRule(): array
+    {
+        return ['date', 'before_or_equal:today', 'after:'.now()->subMonths(config('skills.good_conduct_valid_months'))->toDateString()];
+    }
+
+    /** Record the issue date of a newer Certificate of Good Conduct without a full re-verification. */
+    public function updateGoodConduct(Request $request, User $user)
+    {
+        abort_unless($user->isCaregiver(), 404);
+        $data = $request->validate(['good_conduct_issued_on' => array_merge(['required'], self::goodConductDateRule())],
+            ['good_conduct_issued_on.after' => 'That certificate is already older than '.config('skills.good_conduct_valid_months').' months.']);
+        $user->caregiverProfile->forceFill(['good_conduct_issued_on' => $data['good_conduct_issued_on'], 'good_conduct_warned_at' => null])->save();
+        $until = $user->caregiverProfile->fresh()->goodConductValidUntil();
+        $user->notify(new PlatformNotice('Good Conduct updated', 'Your new Certificate of Good Conduct is recorded. It counts until '.$until->format('j M Y').'.', route('dashboard')));
+        return back()->with('status', 'Good Conduct date saved. Valid until '.$until->format('j M Y').'.');
+    }
+
+    public function reports(Request $request)
+    {
+        $status = $request->query('status', 'open');
+        return view('admin.reports', [
+            'status' => $status,
+            'reports' => Report::with('reporter', 'reported.caregiverProfile', 'job')->where('status', $status)->latest()->paginate(30)->withQueryString(),
+        ]);
+    }
+
+    public function decideReport(Request $request, Report $report)
+    {
+        $data = $request->validate(['status' => 'required|in:upheld,dismissed', 'admin_note' => 'nullable|string|max:255']);
+        $report->forceFill($data + ['resolved_by' => $request->user()->id, 'resolved_at' => now()])->save();
+        $profile = $report->reported->isCaregiver() ? $report->reported->caregiverProfile : null;
+        // Un-pause automatically once nothing is left open against a caregiver and the admin dismissed the report.
+        if ($profile?->paused_at && $data['status'] === 'dismissed' && ! Report::where('reported_id', $report->reported_id)->where('status', 'open')->exists()) {
+            $profile->forceFill(['paused_at' => null, 'paused_reason' => null])->save();
+            $report->reported->notify(new PlatformNotice('Profile visible again', 'We looked into the report and your profile is listed again.', route('dashboard')));
+        }
+        return back()->with('status', 'Report marked '.$data['status'].'.');
+    }
+
+    public function togglePause(Request $request, User $user)
+    {
+        abort_unless($user->isCaregiver(), 404);
+        $profile = $user->caregiverProfile;
+        $paused = ! $profile->paused_at;
+        $profile->forceFill(['paused_at' => $paused ? now() : null, 'paused_reason' => $paused ? 'Paused by admin' : null])->save();
+        $user->notify(new PlatformNotice($paused ? 'Profile paused' : 'Profile visible again',
+            $paused ? 'Your profile is hidden from families while we look into a concern. We will contact you.' : 'Your profile is listed for families again.', route('dashboard')));
+        return back()->with('status', $user->name.($paused ? ' paused (hidden from families).' : ' listed again.'));
+    }
+
+    public function skillCerts(Request $request)
+    {
+        return view('admin.skills', [
+            'items' => CaregiverSkill::with('user', 'certificate')->where('cert_status', $request->query('status', 'pending'))->latest('updated_at')->paginate(30)->withQueryString(),
+            'status' => $request->query('status', 'pending'),
+        ]);
+    }
+
+    public function decideSkillCert(Request $request, CaregiverSkill $caregiverSkill)
+    {
+        $data = $request->validate(['decision' => 'required|in:approved,rejected', 'cert_note' => 'nullable|required_if:decision,rejected|string|max:255']);
+        $ok = $data['decision'] === 'approved';
+        $caregiverSkill->forceFill([
+            'cert_status' => $data['decision'],
+            'cert_note' => $data['cert_note'] ?? null,
+            'certified_at' => $ok ? now() : null,
+            'certified_by' => $ok ? $request->user()->id : null,
+            'declared' => true,
+        ])->save();
+        $caregiverSkill->user->notify(new PlatformNotice($ok ? 'Skill badge earned' : 'Certificate not accepted',
+            $ok ? 'Your '.$caregiverSkill->label().' certificate was checked. The "Certificate checked" badge now shows on your profile.'
+                : 'We could not accept your '.$caregiverSkill->label().' certificate: '.$data['cert_note'], route('caregiver.skills')));
+        return back()->with('status', 'Certificate '.$data['decision'].'.');
     }
 
     public function payments(Request $request)

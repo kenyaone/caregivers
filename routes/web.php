@@ -53,6 +53,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/my/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
         Route::get('/my/payments', [PaymentController::class, 'index'])->name('payments.index');
         Route::post('/my/payments', [PaymentController::class, 'store'])->middleware('throttle:5,1')->name('payments.store');
+        Route::post('/report/{user}', [\App\Http\Controllers\ReportController::class, 'store'])->middleware('throttle:5,1')->name('reports.store');
     });
 
     Route::middleware(['role:caregiver', 'consented'])->prefix('caregiver')->name('caregiver.')->group(function () {
@@ -66,6 +67,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/jobs/{job}/apply', [CaregiverController::class, 'apply'])->name('apply');
         Route::post('/applications/{application}/withdraw', [CaregiverController::class, 'withdraw'])->name('applications.withdraw');
         Route::get('/contacts', [CaregiverController::class, 'contacts'])->name('contacts');
+        Route::post('/good-conduct', [CaregiverController::class, 'goodConductRecheck'])->middleware('throttle:3,1')->name('goodconduct');
+        Route::get('/skills', [\App\Http\Controllers\Caregiver\SkillController::class, 'index'])->name('skills');
+        Route::post('/skills', [\App\Http\Controllers\Caregiver\SkillController::class, 'declare'])->name('skills.declare');
+        Route::post('/skills/certificate', [\App\Http\Controllers\Caregiver\SkillController::class, 'certificate'])->middleware('throttle:10,1')->name('skills.certificate');
+        Route::get('/skills/{skill}/quiz', [\App\Http\Controllers\Caregiver\SkillController::class, 'quiz'])->name('skills.quiz');
+        Route::post('/skills/{skill}/quiz', [\App\Http\Controllers\Caregiver\SkillController::class, 'submit'])->middleware('throttle:10,1')->name('skills.submit');
     });
 
     Route::middleware(['role:family', 'consented'])->prefix('family')->name('family.')->group(function () {
@@ -96,5 +103,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/users', [AdminController::class, 'users'])->name('users');
         Route::post('/users/{user}/toggle', [AdminController::class, 'toggleUser'])->name('users.toggle');
         Route::get('/jobs', [AdminController::class, 'jobs'])->name('jobs');
+        Route::post('/verifications/{user}/good-conduct', [AdminController::class, 'updateGoodConduct'])->name('verifications.goodconduct');
+        Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
+        Route::post('/reports/{report}', [AdminController::class, 'decideReport'])->name('reports.decide');
+        Route::post('/caregivers/{user}/pause', [AdminController::class, 'togglePause'])->name('caregivers.pause');
+        Route::get('/skills', [AdminController::class, 'skillCerts'])->name('skills');
+        Route::post('/skills/{caregiverSkill}', [AdminController::class, 'decideSkillCert'])->name('skills.decide');
     });
 });

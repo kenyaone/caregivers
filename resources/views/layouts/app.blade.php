@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8">
-    
+<head>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ isset($title) ? $title.' · ' : '' }}{{ config('noc.brand') }}</title>
@@ -42,6 +42,7 @@
                 @if($u->isCaregiver())
                     <a href="{{ route('caregiver.dashboard') }}" class="nav-link">Dashboard</a>
                     <a href="{{ route('caregiver.requests') }}" class="nav-link">Requests</a>
+                    <a href="{{ route('caregiver.skills') }}" class="nav-link">Skills</a>
                     <a href="{{ route('caregiver.profile') }}" class="nav-link">Profile</a>
                 @elseif($u->isFamily())
                     <a href="{{ route('family.dashboard') }}" class="nav-link">Dashboard</a>
@@ -51,6 +52,7 @@
                     <a href="{{ route('admin.dashboard') }}" class="nav-link">Admin</a>
                     <a href="{{ route('admin.verifications') }}" class="nav-link">Verifications</a>
                     <a href="{{ route('admin.payments') }}" class="nav-link">Payments</a>
+                    <a href="{{ route('admin.reports') }}" class="nav-link">Reports</a>
                 @endif
                 @php($unread = $u->unreadNotifications()->count())
                 <a href="{{ route('notifications') }}" class="nav-link">Alerts @if($unread)<span class="ml-1 rounded-full bg-amber-500 px-1.5 text-xs text-white">{{ $unread }}</span>@endif</a>

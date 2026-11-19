@@ -4,7 +4,7 @@
     <h1 class="text-2xl font-bold">Hi {{ strtok(auth()->user()->name, ' ') }} 👋</h1>
     @php($steps = [
         ['Complete profile & photo', $profile->isComplete() && $profile->photo_path, route('caregiver.profile')],
-        ['Upload ID & Good Conduct', $docTypes->contains('national_id') && $docTypes->contains('good_conduct'), route('documents.index')],
+        ['Upload ID, selfie & Good Conduct', $docTypes->contains('national_id') && $docTypes->contains('selfie') && $docTypes->contains('good_conduct'), route('documents.index')],
         ['Get verified', $profile->verification_status === 'approved', null],
         ['Subscribe to be listed', (bool) $subscription, route('payments.index')],
     ])
@@ -29,6 +29,21 @@
             @endif
         </div>
     </div>
+    @endif
+
+    @if($profile->paused_at)
+        <div class="alert alert-error mt-6">Your profile is paused and hidden from families while we look into a concern. Our team will contact you.</div>
+    @endif
+    @if($profile->verification_status === 'approved' && in_array($profile->goodConductState(), ['expiring', 'expired', 'missing']))
+        <div class="alert {{ $profile->goodConductState() === 'expiring' ? 'alert-info' : 'alert-error' }} mt-6">
+            @if($profile->goodConductState() === 'expiring')
+                Your Certificate of Good Conduct stops counting on <b>{{ $profile->goodConductValidUntil()->format('j M Y') }}</b>. Apply for a new one on eCitizen now so you stay listed.
+            @else
+                Your Certificate of Good Conduct is more than {{ config('skills.good_conduct_valid_months') }} months old, so families can't see your profile.
+            @endif
+            Upload the new certificate on the <a class="link" href="{{ route('documents.index') }}">Documents page</a>, then:
+            <form method="POST" action="{{ route('caregiver.goodconduct') }}" class="inline">@csrf<button class="btn btn-primary btn-sm ml-2">Check my new certificate</button></form>
+        </div>
     @endif
 
     <div class="mt-6 grid gap-6 lg:grid-cols-3">
@@ -57,12 +72,18 @@
                 <p class="mt-2 text-sm">{!! $subscription ? 'Listed until <b>'.e($subscription->ends_at->format('j M Y')).'</b>' : 'Not listed. Subscribe once verified.' !!}</p>
                 <a href="{{ route('payments.index') }}" class="btn btn-ghost w-full mt-4">{{ $subscription ? 'Renew' : 'Subscribe' }}</a>
             </div>
+            <div class="card text-sm">
+                <h2 class="font-semibold text-base">Skills & badges</h2>
+                <p class="mt-2">You have <b>{{ $badges }}</b> {{ \Illuminate\Support\Str::plural('badge', $badges) }}. Pass short quizzes or upload certificates to earn more; families see them on your profile and you rank higher in search.</p>
+                <a href="{{ route('caregiver.skills') }}" class="btn btn-primary w-full mt-4">{{ $badges ? 'Earn more badges' : 'Earn your first badge' }}</a>
+            </div>
             <div class="card text-sm space-y-1">
                 <h2 class="font-semibold text-base">Your profile</h2>
                 <div>Status: <x-status :value="$profile->verification_status"/></div>
                 <div>Rating: <x-stars :avg="$profile->rating_avg" :count="$profile->rating_count"/></div>
                 <div>Families who unlocked you: <b>{{ $unlocks }}</b> · <a href="{{ route('caregiver.contacts') }}" class="link">See who</a></div>
                 <div>Available: <b>{{ $profile->available ? 'Yes' : 'No (hidden from search)' }}</b></div>
+                @if($profile->good_conduct_issued_on)<div>Good Conduct counts until: <b>{{ $profile->goodConductValidUntil()->format('j M Y') }}</b></div>@endif
                 <div class="flex gap-2 pt-3"><a href="{{ route('caregiver.profile') }}" class="btn btn-ghost btn-sm">Edit profile</a>@if($profile->verification_status === 'approved')<a href="{{ route('caregivers.show', auth()->user()) }}" class="btn btn-ghost btn-sm">View public profile</a>@endif</div>
             </div>
         </div>

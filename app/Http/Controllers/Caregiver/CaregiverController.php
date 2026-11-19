@@ -25,6 +25,7 @@ class CaregiverController extends Controller
             'docTypes' => $user->documents()->pluck('type'),
             'pendingRequests' => CareRequest::where('caregiver_id', $user->id)->where('status', 'pending')->with('family.familyProfile')->latest()->get(),
             'unlocks' => Unlock::where('caregiver_id', $user->id)->count(),
+            'badges' => $user->skills()->earned()->count(),
             'matchingJobs' => CareJob::open()
                 ->when($profile->county, fn ($q, $v) => $q->where('county', $v))
                 ->when($profile->care_types, fn ($q, $v) => $q->whereIn('care_type', $v))
@@ -87,12 +88,24 @@ class CaregiverController extends Controller
             return back()->withErrors(['verify' => 'Add a clear profile photo of your face first.']);
         }
         $types = $user->documents()->pluck('type');
-        if (! $types->contains('national_id') || ! $types->contains('good_conduct')) {
-            return back()->withErrors(['verify' => 'Upload your national ID and Certificate of Good Conduct first.']);
+        if (! $types->contains('national_id') || ! $types->contains('selfie') || ! $types->contains('good_conduct')) {
+            return back()->withErrors(['verify' => 'Upload your national ID, a selfie holding your ID, and your Certificate of Good Conduct first.']);
         }
         $profile->forceFill(['verification_status' => 'pending', 'verification_note' => null])->save();
         User::where('role', 'admin')->get()->each->notify(new PlatformNotice('Caregiver awaiting verification', $user->name.' submitted their profile for verification.', route('admin.verifications.show', $user)));
         return back()->with('status', 'Submitted. We will check your documents and call your referee, then notify you.');
+    }
+
+    /** After uploading a newer Certificate of Good Conduct, ask the team to record its date. */
+    public function goodConductRecheck(Request $request)
+    {
+        $user = $request->user();
+        $latest = $user->documents()->where('type', 'good_conduct')->latest('id')->first();
+        if (! $latest || $latest->created_at->lt(now()->subDays(30))) {
+            return back()->withErrors(['verify' => 'Upload your new Certificate of Good Conduct on the Documents page first.']);
+        }
+        User::where('role', 'admin')->get()->each->notify(new PlatformNotice('New Good Conduct certificate', $user->name.' uploaded a new Certificate of Good Conduct. Check it and record the issue date.', route('admin.verifications.show', $user)));
+        return back()->with('status', 'Thanks. We will check your new certificate and update your profile.');
     }
 
     public function requests(Request $request)

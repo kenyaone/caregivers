@@ -41,6 +41,9 @@
                 @endif
             @endguest
         </div>
+        @if($u && $u->isCaregiver())
+            @include('partials.report-form', ['target' => $job->family, 'job' => $job, 'label' => 'Report this job or family'])
+        @endif
     </div>
 </div>
 @endsection

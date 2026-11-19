@@ -38,7 +38,7 @@ class CareFlowTest extends TestCase
             'arrangements' => ['live_in', 'day'], 'county' => 'Nairobi', 'town' => 'Kileleshwa', 'years_experience' => 5,
             'expected_pay' => 18000, 'pay_unit' => 'per_month', 'bio' => 'Caring and patient.', 'photo_path' => 'photos/x.jpg']);
         if ($verified) {
-            $p->forceFill(['verification_status' => 'approved'])->save();
+            $p->forceFill(['verification_status' => 'approved', 'verified_at' => now(), 'good_conduct_issued_on' => now()->subMonth()->toDateString()])->save();
         }
         if ($subscribed) {
             $u->subscriptions()->create(['plan_id' => Plan::where('audience', 'caregiver')->first()->id, 'starts_at' => now(), 'ends_at' => now()->addYear()]);
@@ -97,6 +97,9 @@ class CareFlowTest extends TestCase
         foreach (['national_id', 'good_conduct'] as $t) {
             $this->post('/my/documents', ['type' => $t, 'file' => UploadedFile::fake()->create('d.pdf', 50, 'application/pdf')])->assertSessionHasNoErrors();
         }
+        $this->post('/caregiver/verify')->assertSessionHasErrors('verify'); // selfie still missing
+        $this->post('/my/documents', ['type' => 'selfie', 'file' => UploadedFile::fake()->create('s.pdf', 50, 'application/pdf')])->assertSessionHasErrors('file'); // must be a photo
+        $this->post('/my/documents', ['type' => 'selfie', 'file' => UploadedFile::fake()->image('selfie.jpg')])->assertSessionHasNoErrors();
         $this->post('/caregiver/verify')->assertSessionHasNoErrors();
         $this->assertSame('pending', $u->caregiverProfile->fresh()->verification_status);
     }
@@ -123,7 +126,9 @@ class CareFlowTest extends TestCase
         $this->actingAs($fam)->get("/documents/{$doc->id}")->assertOk();
         $this->actingAs($fam)->get("/documents/{$id->id}")->assertForbidden(); // ID card stays private
 
-        // Review allowed only after unlocking
+        // Unlocking alone is not enough to review: the caregiver must have accepted a request or been hired
+        $this->actingAs($fam)->post("/family/caregivers/{$cg->id}/review", ['stars' => 5])->assertForbidden();
+        CareRequest::create(['family_id' => $fam->id, 'caregiver_id' => $cg->id, 'care_type' => 'elderly', 'arrangement' => 'day', 'message' => 'Help', 'status' => 'accepted']);
         $this->actingAs($fam)->post("/family/caregivers/{$cg->id}/review", ['stars' => 5, 'comment' => 'Wonderful'])->assertSessionHasNoErrors();
         $this->assertEquals(5, $cg->caregiverProfile->fresh()->rating_avg);
         $this->actingAs($noCredit)->post("/family/caregivers/{$cg->id}/review", ['stars' => 1])->assertForbidden();
@@ -199,10 +204,13 @@ class CareFlowTest extends TestCase
         foreach (['/admin', '/admin/verifications', "/admin/verifications/{$cg->id}", '/admin/payments', '/admin/plans', '/admin/users', '/admin/jobs'] as $url) {
             $this->actingAs($admin)->get($url)->assertOk();
         }
-        $this->actingAs($admin)->post("/admin/verifications/{$cg->id}", ['decision' => 'approved'])->assertSessionHasErrors('checks');
+        $this->actingAs($admin)->post("/admin/verifications/{$cg->id}", ['decision' => 'approved', 'good_conduct_issued_on' => now()->subMonth()->toDateString()])->assertSessionHasErrors('checks');
         $checks = array_fill_keys(array_keys(config('noc.verification_checks.caregiver')), '1');
-        $this->actingAs($admin)->post("/admin/verifications/{$cg->id}", ['decision' => 'approved', 'checks' => $checks])->assertRedirect();
+        $this->actingAs($admin)->post("/admin/verifications/{$cg->id}", ['decision' => 'approved', 'checks' => $checks])->assertSessionHasErrors('good_conduct_issued_on');
+        $this->actingAs($admin)->post("/admin/verifications/{$cg->id}", ['decision' => 'approved', 'checks' => $checks, 'good_conduct_issued_on' => now()->subMonths(7)->toDateString()])->assertSessionHasErrors('good_conduct_issued_on');
+        $this->actingAs($admin)->post("/admin/verifications/{$cg->id}", ['decision' => 'approved', 'checks' => $checks, 'good_conduct_issued_on' => now()->subMonth()->toDateString()])->assertRedirect();
         $this->assertTrue($cg->fresh()->isVerified());
+        $this->actingAs($admin)->post("/admin/verifications/{$cg->id}", ['decision' => 'rejected', 'note' => 'Blurry ID', 'good_conduct_issued_on' => ''])->assertSessionHasNoErrors();
     }
 
     public function test_access_control(): void

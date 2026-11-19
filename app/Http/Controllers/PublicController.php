@@ -14,7 +14,8 @@ class PublicController extends Controller
     public function home()
     {
         return view('public.home', [
-            'featured' => CaregiverProfile::listed()->with('user')->orderByDesc('rating_avg')->latest('verified_at')->limit(6)->get(),
+            'featured' => CaregiverProfile::listed()->with('user', 'skills')->withCount(['skills as badges_count' => fn ($q) => $q->earned()])
+                ->orderByDesc('rating_avg')->orderByDesc('badges_count')->latest('verified_at')->limit(6)->get(),
             'jobs' => CareJob::open()->latest()->limit(4)->get(),
             'caregiverPlan' => Plan::for('caregiver')->first(),
             'familyPlan' => Plan::for('family')->first(),
@@ -26,23 +27,24 @@ class PublicController extends Controller
         $filter = fn ($q) => $q
             ->when($request->care_type, fn ($q, $v) => $q->whereJsonContains('care_types', $v))
             ->when($request->arrangement, fn ($q, $v) => $q->whereJsonContains('arrangements', $v))
-            ->when($request->county, fn ($q, $v) => $q->where('county', $v));
+            ->when($request->county, fn ($q, $v) => $q->where('county', $v))
+            ->when($request->skill, fn ($q, $v) => $q->whereHas('skills', fn ($s) => $s->earned()->where('skill', $v)));
 
-        $caregivers = $filter(CaregiverProfile::listed()->with('user'))
-            ->orderByDesc('rating_avg')->orderByDesc('years_experience')->paginate(18)->withQueryString();
+        $caregivers = $filter(CaregiverProfile::listed()->with('user', 'skills')->withCount(['skills as badges_count' => fn ($q) => $q->earned()]))
+            ->orderByDesc('rating_avg')->orderByDesc('badges_count')->orderByDesc('years_experience')->paginate(18)->withQueryString();
 
         // Nothing matched: show the closest caregivers by relaxing the county first, then everything.
         $suggestions = collect();
         $suggestTitle = null;
-        if ($caregivers->isEmpty() && ($request->care_type || $request->arrangement || $request->county)) {
+        if ($caregivers->isEmpty() && ($request->care_type || $request->arrangement || $request->county || $request->skill)) {
             if ($request->county) {
-                $suggestions = CaregiverProfile::listed()->with('user')
+                $suggestions = CaregiverProfile::listed()->with('user', 'skills')
                     ->when($request->care_type, fn ($q, $v) => $q->whereJsonContains('care_types', $v))
                     ->limit(6)->get();
                 $suggestTitle = 'Matching caregivers in other counties';
             }
             if ($suggestions->isEmpty()) {
-                $suggestions = CaregiverProfile::listed()->with('user')->orderByDesc('rating_avg')->limit(6)->get();
+                $suggestions = CaregiverProfile::listed()->with('user', 'skills')->orderByDesc('rating_avg')->limit(6)->get();
                 $suggestTitle = 'Other verified caregivers';
             }
         }
@@ -64,7 +66,10 @@ class PublicController extends Controller
             'profile' => $profile,
             'reviews' => Review::where('caregiver_id', $caregiver->id)->with('family')->latest()->limit(10)->get(),
             'unlocked' => $unlocked || $isOwnerOrAdmin,
-            'canReview' => $unlocked && ! Review::where('family_id', $viewer->id)->where('caregiver_id', $caregiver->id)->exists(),
+            'canReview' => $viewer?->isFamily() && $viewer->hasWorkedWith($caregiver) && ! Review::where('family_id', $viewer->id)->where('caregiver_id', $caregiver->id)->exists(),
+            'skills' => $caregiver->skills()->get()->sortByDesc(fn ($s) => [$s->isCertified(), $s->isTested()])->values(),
+            'placements' => $profile->placementsCount(),
+            'alreadyReported' => $viewer && \App\Models\Report::where('reporter_id', $viewer->id)->where('reported_id', $caregiver->id)->where('status', 'open')->exists(),
             'credits' => $viewer?->isFamily() ? $viewer->creditsLeft() : 0,
         ]);
     }

@@ -3,3 +3,19 @@
 .min-w-0{min-width:0}.ml-2{margin-left:.5rem}.object-cover{object-fit:cover}.pt-3{padding-top:.75rem}.text-base{font-size:1rem;line-height:1.5rem}
 .space-y-5>:not([hidden])~:not([hidden]){margin-top:1.25rem}
 @media (min-width:768px){.md\:grid-cols-7{grid-template-columns:repeat(7,minmax(0,1fr))}.md\:col-span-7{grid-column:span 7/span 7}}
+@media (min-width:768px){.md\:grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}}
+/* Trust & skills */
+.skill-badge{display:inline-flex;align-items:center;gap:.3rem;border-radius:999px;padding:.2rem .65rem;font-size:.78rem;font-weight:700;line-height:1.4;border:1px solid transparent}
+.skill-badge small{font-weight:500;opacity:.8}
+.skill-cert{background:#ede9fe;color:#5b21b6;border-color:#ddd6fe}
+.skill-tested{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+.skill-declared{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+.cg-trust-panel{border:1px solid #99f6e4;background:#f0fdfa;border-radius:1rem;padding:1.25rem}
+.cg-trust-list{margin-top:.75rem;display:grid;gap:.4rem;font-size:.9rem}
+@media (min-width:640px){.cg-trust-list{grid-template-columns:1fr 1fr}}
+.cg-trust-list li{display:flex;gap:.5rem;align-items:flex-start}
+.cg-trust-list li:before{content:"✓";flex:none;width:1.2rem;height:1.2rem;border-radius:999px;display:grid;place-items:center;font-size:.7rem;font-weight:900;background:#14b8a6;color:#fff;margin-top:.1rem}
+.cg-trust-list li.na:before{content:"•";background:#cbd5e1}
+.cg-report summary{cursor:pointer;font-size:.85rem;color:#b91c1c;font-weight:600;list-style:none}
+.cg-report summary::-webkit-details-marker{display:none}
+.min-w-48{min-width:12rem}

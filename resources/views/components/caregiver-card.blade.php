@@ -14,6 +14,13 @@
             <div class="mt-1"><x-stars :avg="$profile->rating_avg" :count="$profile->rating_count"/></div>
         </div>
     </div>
+    @php($earned = $profile->relationLoaded('skills') ? $profile->skills->filter->isEarned() : collect())
+    @if($earned->isNotEmpty())
+        <div class="mt-3 flex flex-wrap gap-1">
+            @foreach($earned->take(3) as $s)<span class="skill-badge {{ $s->isCertified() ? 'skill-cert' : 'skill-tested' }}">{{ $s->isCertified() ? '🎓' : '✓' }} {{ $s->label() }}</span>@endforeach
+            @if($earned->count() > 3)<span class="skill-badge skill-declared">+{{ $earned->count() - 3 }}</span>@endif
+        </div>
+    @endif
     <div class="mt-3 flex flex-wrap gap-1">
         @foreach(array_slice($profile->careTypeLabels(), 0, 3) as $l)<span class="badge bg-slate-100 text-slate-700">{{ $l }}</span>@endforeach
     </div>

@@ -14,18 +14,18 @@ class DocumentController extends Controller
         $user = $request->user();
         return view('shared.documents', [
             'documents' => $user->documents()->latest()->get(),
-            'types' => config('noc.document_types.'.($user->isCaregiver() ? 'caregiver' : 'family')),
+            'types' => collect(config('noc.document_types.'.($user->isCaregiver() ? 'caregiver' : 'family')))->except('skill_cert')->all(),
         ]);
     }
 
     public function store(Request $request)
     {
         $user = $request->user();
-        $types = array_keys(config('noc.document_types.'.($user->isCaregiver() ? 'caregiver' : 'family')));
+        $types = array_keys(collect(config('noc.document_types.'.($user->isCaregiver() ? 'caregiver' : 'family')))->except('skill_cert')->all());
         $request->validate([
             'type' => 'required|in:'.implode(',', $types),
-            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
-        ]);
+            'file' => 'required|file|max:5120|mimes:'.($request->type === 'selfie' ? 'jpg,jpeg,png' : 'pdf,jpg,jpeg,png'),
+        ], ['file.mimes' => 'Upload a PDF, JPG or PNG. The selfie must be a photo (JPG or PNG).']);
         $file = $request->file('file');
         $user->documents()->create([
             'type' => $request->type,
@@ -48,8 +48,8 @@ class DocumentController extends Controller
     {
         $user = $request->user();
         $allowed = $user->isAdmin() || $document->user_id === $user->id
-            // families may see the documents of caregivers whose contacts they unlocked (not the ID card)
-            || ($user->isFamily() && $document->type !== 'national_id'
+            // families may see the documents of caregivers whose contacts they unlocked (never the ID card or selfie)
+            || ($user->isFamily() && ! in_array($document->type, Document::PRIVATE_TYPES, true)
                 && Unlock::where('family_id', $user->id)->where('caregiver_id', $document->user_id)->exists());
         abort_unless($allowed, 403);
         return Storage::disk('local')->response($document->path, $document->original_name);

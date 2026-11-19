@@ -18,6 +18,19 @@ Schedule::call(function () {
         });
 })->dailyAt('09:00')->name('subscription-reminders');
 
+// Good Conduct certificates count for 6 months: warn at 5 months; listings hide automatically once expired.
+Schedule::call(function () {
+    \App\Models\CaregiverProfile::with('user')->where('verification_status', 'approved')->whereNull('good_conduct_warned_at')
+        ->whereDate('good_conduct_issued_on', '<=', now()->subMonths(config('skills.good_conduct_warn_months'))->toDateString())->get()
+        ->each(function ($p) {
+            $until = $p->goodConductValidUntil();
+            $p->user->notify(new PlatformNotice($until->isPast() ? 'Good Conduct expired: you are hidden' : 'Renew your Certificate of Good Conduct',
+                ($until->isPast() ? 'Your Certificate of Good Conduct is more than 6 months old, so families can no longer see your profile.' : 'Your Certificate of Good Conduct stops counting on '.$until->format('j M Y').'.')
+                .' Apply for a new one on eCitizen, upload it on the Documents page, then tap "Check my new certificate" on your dashboard.', route('documents.index')));
+            $p->forceFill(['good_conduct_warned_at' => now()])->save();
+        });
+})->dailyAt('08:40')->name('good-conduct-reminders');
+
 // Close care jobs nobody has updated for 60 days.
 Schedule::call(fn () => \App\Models\CareJob::where('status', 'open')->where('updated_at', '<', now()->subDays(60))->update(['status' => 'closed']))
     ->dailyAt('01:00')->name('close-stale-jobs');
